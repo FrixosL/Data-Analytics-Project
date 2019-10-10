@@ -1,6 +1,6 @@
 ---
 title: "Group Assignment"
-author: "Frixos Larkos"
+author: "Group 16"
 date: "09/10/2019"
 output: html_document
 ---
@@ -21,7 +21,7 @@ library(readxl) #need to load readxl explicitly, as it is not a core tidyverse
 library(GGally)
 library(broom)
 library(scales)
-# library(plotly) # Animation of graphs and tables
+#library(plotly) # Animation of graphs and tables
 # library(DT) 
 ```
 
@@ -62,10 +62,10 @@ clean_data <- raw_data %>%
 # Code written by Noel below
 
 # Summary
-glimpse(airbnb)
+glimpse(clean_data)
 
 # 1.1 Data Wrangling
-airbnb <- airbnb %>% 
+airbnb <- clean_data %>% 
   extract(price, "price") %>%
   mutate(price = as.numeric(price))
 
