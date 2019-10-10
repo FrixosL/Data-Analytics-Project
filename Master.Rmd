@@ -23,11 +23,11 @@ library(broom)
 library(scales)
 ```
 
-# EDA
+# Explanatory Data Analysis (EDA)
 
 ```{r load_data}
 
-listings <- read_csv(here::here('Data', 'listings.csv.gz'))
+raw_data <- read_csv(here::here('Data', 'raw_data.csv.gz'))
 
 ```
 
@@ -38,7 +38,7 @@ listings <- read_csv(here::here('Data', 'listings.csv.gz'))
 ## Looking at raw values
 
 ```{r EDA}
-glimpse(listings)
+glimpse(raw_data)
 
 
 ```
@@ -47,16 +47,16 @@ glimpse(listings)
 
 ```{r summary_stats}
 
-mosaic::favstats(price ~ city, data=listings)
+mosaic::favstats(price ~ city, data=raw_data)
 
-skimr::skim(listings)
+skimr::skim(raw_data)
 
 ```
 
 
 ```{r correlation}
 
-listings %>%
+raw_data %>%
   
 
 ```
@@ -85,7 +85,7 @@ There are 106 variables and 19833 observations
 
 ```{r visualizations}
 
-listings %>%
+raw_data %>%
   #mutate(host_is_superhost = case_when(
     #host_is_superhost %in% TRUE ~ superhost, FALSE ~ non_superhost, NA)) %>%
   select(host_is_superhost, price, review_scores_rating) %>%
@@ -102,12 +102,12 @@ listings %>%
 
 
 
-listings_new <- listings %>%
+raw_data_new <- raw_data %>%
   select(price, review_scores_rating) %>%
   filter(city == "Barcelona") %>%
     na.omit() 
     
-listings_new %>%
+raw_data_new %>%
   GGally::ggpairs()+
   theme_bw()
 
