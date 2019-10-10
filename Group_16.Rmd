@@ -23,16 +23,60 @@ library(broom)
 library(scales)
 ```
 ```
+# EDA
 
 ```{r load_data}
 
-raw_data <- read_csv(here::here('Data', 'listings.csv.gz'))
+listings <- read_csv(here::here('Data', 'listings.csv.gz'))
 
 ```
 
+## Looking at raw values
+
 ```{r EDA}
-#look at raw value
-glimpse(raw_data)
+glimpse(listings)
+
+
+```
+
+## Looking at summary statistics
+
+```{r summary_stats}
+
+mosaic::favstats(price ~ city, data=listings)
+
+skimr::skim(listings)
+
+```
+
+**Answer at minimum**: 
+*1. How many variables/columns? How many rows/observations?* 
+
+There are 106 variables and 19833 observations
+
+*2. Which variables are numbers?*
+
+(skim table - numeric)
+
+3. Which are categorical or factor variables (numeric or character variables with variables that have a fixed and known set of possible values?
+
+?
+
+4. What are the correlations between variables? 
+
+
+5. Does each scatterplot support a linear relationship between variables? 
+6. Do any of the correlations appear to be conditional on the value of a categorical variable?
+
+## Creating visualisations
+
+```{r visualizations}
+
+listings %>%
+  na.omit() %>%
+  select(host_is_superhost, price, review_scores_rating) %>%
+  ggpairs(aes(colour=host_is_superhost, alpha = 0.3))+
+  theme_bw()
 
 ```
 
