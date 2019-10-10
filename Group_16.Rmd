@@ -22,12 +22,16 @@ library(GGally)
 library(broom)
 library(scales)
 ```
-```
+
 # EDA
 
 ```{r load_data}
 
 listings <- read_csv(here::here('Data', 'listings.csv.gz'))
+
+```
+
+```{r}
 
 ```
 
