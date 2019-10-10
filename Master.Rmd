@@ -27,19 +27,16 @@ library(scales)
 
 ```{r load_data}
 
-raw_data <- read_csv(here::here('Data', 'raw_data.csv.gz'))
+raw_data <- read_csv(here::here('Data', 'listings.csv.gz'))
 
 ```
 
-```{r}
-
-```
 
 ## Looking at raw values
 
 ```{r EDA}
-glimpse(raw_data)
 
+glimpse(raw_data)
 
 ```
 
@@ -47,12 +44,22 @@ glimpse(raw_data)
 
 ```{r summary_stats}
 
-mosaic::favstats(price ~ city, data=raw_data)
+mosaic::favstats(price ~ city, data = raw_data)
 
 skimr::skim(raw_data)
 
 ```
 
+## Cleaning Data
+
+```{r}
+
+clean_data <- raw_data %>% 
+  filter()
+
+```
+
+## Regressions
 
 ```{r correlation}
 
