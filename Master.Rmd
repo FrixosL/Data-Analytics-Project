@@ -22,12 +22,16 @@ library(GGally)
 library(broom)
 library(scales)
 ```
-```
+
 # EDA
 
 ```{r load_data}
 
 listings <- read_csv(here::here('Data', 'listings.csv.gz'))
+
+```
+
+```{r}
 
 ```
 
@@ -87,7 +91,16 @@ listings %>%
   select(host_is_superhost, price, review_scores_rating) %>%
   na.omit() %>%
   ggpairs(aes(colour=host_is_superhost, alpha = 0.3))+
-  theme_bw()
+  theme_bw() 
+
+```
+
+
+## MAP (Noel)
+
+```{r MAP}
+
+
 
 listings_new <- listings %>%
   select(price, review_scores_rating) %>%
