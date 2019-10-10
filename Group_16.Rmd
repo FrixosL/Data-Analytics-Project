@@ -5,4 +5,34 @@ date: "09/10/2019"
 output: html_document
 ---
 
+```{r huxtable-stuff, include=FALSE}
+options("huxtable.knit_print_df" = FALSE)
+library(lubridate)
+library(here)
+library(moderndive)
+library(tidyverse)
+library(ggfortify)
+library(infer)
+library(mosaic)
+library(huxtable)
+library(kableExtra)
+library(tidyquant)
+library(readxl) #need to load readxl explicitly, as it is not a core tidyverse 
+library(GGally)
+library(broom)
+library(scales)
+```
+```
+
+```{r load_data}
+
+raw_data <- read_csv(here::here('Data', 'listings.csv.gz'))
+
+```
+
+```{r EDA}
+#look at raw value
+glimpse(raw_data)
+
+```
 
