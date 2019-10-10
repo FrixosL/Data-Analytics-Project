@@ -21,6 +21,8 @@ library(readxl) #need to load readxl explicitly, as it is not a core tidyverse
 library(GGally)
 library(broom)
 library(scales)
+library(plotly)
+library(DT)
 ```
 
 # Explanatory Data Analysis (EDA)
@@ -52,19 +54,10 @@ skimr::skim(raw_data)
 
 ## Cleaning Data
 
-```{r}
+```{r clean_data}
 
 clean_data <- raw_data %>% 
   filter()
-
-```
-
-## Regressions
-
-```{r correlation}
-
-raw_data %>%
-  
 
 ```
 
@@ -85,27 +78,28 @@ There are 106 variables and 19833 observations
 4. What are the correlations between variables? 
 
 
-5. Does each scatterplot support a linear relationship between variables? 
+5. Does each scatterplot support a linear relationship between variables?
+
 6. Do any of the correlations appear to be conditional on the value of a categorical variable?
 
-## Creating visualisations
+##  Visualisations
 
-```{r visualizations}
+```{r visualizations, echo=TRUE, message=FALSE, warning=FALSE}
 
 raw_data %>%
   #mutate(host_is_superhost = case_when(
     #host_is_superhost %in% TRUE ~ superhost, FALSE ~ non_superhost, NA)) %>%
   select(host_is_superhost, price, review_scores_rating) %>%
   na.omit() %>%
-  ggpairs(aes(colour=host_is_superhost, alpha = 0.3))+
+  ggpairs(aes(colour = host_is_superhost, alpha = 0.3)) +
   theme_bw() 
 
 ```
 
 
-## MAP (Noel)
+# Mapping
 
-```{r MAP}
+```{r MAP, echo=TRUE, message=FALSE, warning=FALSE}
 
 
 
@@ -115,10 +109,11 @@ raw_data_new <- raw_data %>%
     na.omit() 
     
 raw_data_new %>%
-  GGally::ggpairs()+
+  GGally::ggpairs() +
   theme_bw()
 
 
 
 ```
 
+# Regressions
