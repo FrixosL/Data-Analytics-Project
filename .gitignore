@@ -2,5 +2,10 @@
 .Rhistory
 .RData
 .Ruserdata
+<<<<<<< HEAD
 Master.html
 .gitignore
+=======
+listings.csv
+mfa_group_project.html
+>>>>>>> 3be667c6faf20206390715fef5793ae50b4fce3f

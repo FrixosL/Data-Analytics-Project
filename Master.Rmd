@@ -21,8 +21,8 @@ library(readxl) #need to load readxl explicitly, as it is not a core tidyverse
 library(GGally)
 library(broom)
 library(scales)
-library(plotly)
-library(DT)
+# library(plotly) # Animation of graphs and tables
+# library(DT) 
 ```
 
 # Explanatory Data Analysis (EDA)
@@ -58,6 +58,67 @@ skimr::skim(raw_data)
 
 clean_data <- raw_data %>% 
   filter()
+
+# Code written by Noel below
+
+# Summary
+glimpse(airbnb)
+
+# 1.1 Data Wrangling
+airbnb <- airbnb %>% 
+  extract(price, "price") %>%
+  mutate(price = as.numeric(price))
+
+airbnb <- airbnb %>% 
+  extract(weekly_price, "weekly_price") %>%
+  mutate(weekly_price = as.numeric(weekly_price))
+
+airbnb <- airbnb %>% 
+  extract(monthly_price, "monthly_price") %>%
+  mutate(monthly_price = as.numeric(monthly_price))
+
+airbnb <- airbnb %>% 
+  extract(cleaning_fee, "cleaning_fee") %>%
+  mutate(cleaning_fee = as.numeric(cleaning_fee))
+
+airbnb <- airbnb %>% 
+  extract(extra_people, "extra_people") %>%
+  mutate(extra_people = as.numeric(extra_people))
+
+airbnb <- airbnb %>% 
+  extract(security_deposit, "security_deposit") %>%
+  mutate(security_deposit = as.numeric(security_deposit))
+
+# 1.2 Missing values
+airbnb <- airbnb %>%
+  mutate(cleaning_fee = case_when(
+    is.na(cleaning_fee) ~ 0, 
+    TRUE ~ cleaning_fee
+  ))
+
+
+# Frequency analysis of property types
+
+airbnb_sorted <- airbnb %>% 
+  group_by(property_type) %>% 
+  summarize("Count" = n()) %>% 
+  arrange(desc(Count))
+
+airbnb_sorted %>% 
+  head(4)
+
+# Property type simplified column added
+
+airbnb <- airbnb %>%
+  mutate(prop_type_simplified = case_when(
+    property_type %in% c("Apartment","Serviced apartment", "Loft","House") ~ property_type, 
+    TRUE ~ "Other"
+  ))
+
+airbnb %>%
+  count(property_type, prop_type_simplified) %>%
+  arrange(desc(n))  
+
 
 ```
 
@@ -101,18 +162,17 @@ raw_data %>%
 
 ```{r MAP, echo=TRUE, message=FALSE, warning=FALSE}
 
+library(leaflet)
 
-
-raw_data_new <- raw_data %>%
-  select(price, review_scores_rating) %>%
-  filter(city == "Barcelona") %>%
-    na.omit() 
-    
-raw_data_new %>%
-  GGally::ggpairs() +
-  theme_bw()
-
-
+leaflet(data = filter(raw_data, minimum_nights <= 4)) %>% 
+  addProviderTiles("OpenStreetMap.Mapnik") %>% 
+  addCircleMarkers(lng = ~longitude, 
+                   lat = ~latitude, 
+                   radius = 1, 
+                   fillColor = "blue", 
+                   fillOpacity = 0.4, 
+                   popup = ~listing_url,
+                   label = ~property_type)
 
 ```
 
