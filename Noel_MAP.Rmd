@@ -23,73 +23,87 @@ library(broom)
 library(scales)
 ```
 
-# EDA
+```{r clearning_Data}
+# Summary
+glimpse(airbnb)
 
-```{r load_data}
+# 1.1 Data Wrangling
+airbnb <- airbnb %>% 
+  extract(price, "price") %>%
+  mutate(price = as.numeric(price))
 
-listings <- read_csv(here::here('Data', 'listings.csv.gz'))
+airbnb <- airbnb %>% 
+  extract(weekly_price, "weekly_price") %>%
+  mutate(weekly_price = as.numeric(weekly_price))
+
+airbnb <- airbnb %>% 
+  extract(monthly_price, "monthly_price") %>%
+  mutate(monthly_price = as.numeric(monthly_price))
+
+airbnb <- airbnb %>% 
+  extract(cleaning_fee, "cleaning_fee") %>%
+  mutate(cleaning_fee = as.numeric(cleaning_fee))
+
+airbnb <- airbnb %>% 
+  extract(extra_people, "extra_people") %>%
+  mutate(extra_people = as.numeric(extra_people))
+
+airbnb <- airbnb %>% 
+  extract(security_deposit, "security_deposit") %>%
+  mutate(security_deposit = as.numeric(security_deposit))
+
+# 1.2 Missing values
+airbnb <- airbnb %>%
+  mutate(cleaning_fee = case_when(
+    is.na(cleaning_fee) ~ 0, 
+    TRUE ~ cleaning_fee
+  ))
+
+
+# Frequency analysis of property types
+
+airbnb_sorted <- airbnb %>% 
+  group_by(property_type) %>% 
+  summarize("Count" = n()) %>% 
+  arrange(desc(Count))
+
+airbnb_sorted %>% 
+  head(4)
+
+# Property type simplified column added
+
+airbnb <- airbnb %>%
+  mutate(prop_type_simplified = case_when(
+    property_type %in% c("Apartment","Serviced apartment", "Loft","House") ~ property_type, 
+    TRUE ~ "Other"
+  ))
+
+airbnb %>%
+  count(property_type, prop_type_simplified) %>%
+  arrange(desc(n))        
+
 
 ```
 
-```{r}
-
-```
-
-## Looking at raw values
-
-```{r EDA}
-glimpse(listings)
 
 
-```
-
-## Looking at summary statistics
-
-```{r summary_stats}
-
-mosaic::favstats(price ~ city, data=listings)
-
-skimr::skim(listings)
-
-```
-
-**Answer at minimum**: 
-*1. How many variables/columns? How many rows/observations?* 
-
-There are 106 variables and 19833 observations
-
-*2. Which variables are numbers?*
-
-(skim table - numeric)
-
-3. Which are categorical or factor variables (numeric or character variables with variables that have a fixed and known set of possible values?
-
-?
-
-4. What are the correlations between variables? 
-
-
-5. Does each scatterplot support a linear relationship between variables? 
-6. Do any of the correlations appear to be conditional on the value of a categorical variable?
-
-## Creating visualisations
-
-```{r visualizations}
-
-listings %>%
-  na.omit() %>%
-  select(host_is_superhost, price, review_scores_rating) %>%
-  ggpairs(aes(colour=host_is_superhost, alpha = 0.3))+
-  theme_bw() 
-
-```
-
-
-## MAP (Noel)
+## MAP
 
 ```{r MAP}
+library(leaflet)
 
+airbnb <- read_csv(here::here("listings.csv"))
+glimpse(airbnb)
 
+leaflet(data = filter(airbnb, minimum_nights <= 4)) %>% 
+  addProviderTiles("OpenStreetMap.Mapnik") %>% 
+  addCircleMarkers(lng = ~longitude, 
+                   lat = ~latitude, 
+                   radius = 1, 
+                   fillColor = "blue", 
+                   fillOpacity = 0.4, 
+                   popup = ~listing_url,
+                   label = ~property_type)
 
 ```
 
