@@ -1,0 +1,25 @@
+{
+    "collab_server" : "",
+    "contents" : "",
+    "created" : 1570722271867.000,
+    "dirty" : false,
+    "encoding" : "UTF-8",
+    "folds" : "",
+    "hash" : "3302632820",
+    "id" : "D2C4B922",
+    "lastKnownWriteTime" : 1570725895,
+    "last_content_update" : 1570726435793,
+    "path" : "C:/Users/frixo/Desktop/LBS/Semester 1/Data Analytics for Finance/Group Project/Data-Analytics-Project/Master.Rmd",
+    "project_path" : "Master.Rmd",
+    "properties" : {
+        "cursorPosition" : "37,0",
+        "scrollLine" : "13"
+    },
+    "read_only" : false,
+    "read_only_alternatives" : [
+    ],
+    "relative_order" : 1,
+    "source_on_save" : false,
+    "source_window" : "",
+    "type" : "r_markdown"
+}

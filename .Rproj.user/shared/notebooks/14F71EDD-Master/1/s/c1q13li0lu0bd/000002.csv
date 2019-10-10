@@ -1,0 +1,30 @@
+"0",""
+"0","listings <- read_csv(here::here('Data', 'listings.csv.gz'))"
+"2","Parsed with column specification:
+cols(
+  .default = col_character(),
+  id = [32mcol_double()[39m,
+  scrape_id = [32mcol_double()[39m,
+  last_scraped = [34mcol_date(format = """")[39m,
+  thumbnail_url = [33mcol_logical()[39m,
+  medium_url = [33mcol_logical()[39m,
+  xl_picture_url = [33mcol_logical()[39m,
+  host_id = [32mcol_double()[39m,
+  host_since = [34mcol_date(format = """")[39m,
+  host_is_superhost = [33mcol_logical()[39m,
+  host_listings_count = [32mcol_double()[39m,
+  host_total_listings_count = [32mcol_double()[39m,
+  host_has_profile_pic = [33mcol_logical()[39m,
+  host_identity_verified = [33mcol_logical()[39m,
+  latitude = [32mcol_double()[39m,
+  longitude = [32mcol_double()[39m,
+  is_location_exact = [33mcol_logical()[39m,
+  accommodates = [32mcol_double()[39m,
+  bathrooms = [32mcol_double()[39m,
+  bedrooms = [32mcol_double()[39m,
+  beds = [32mcol_double()[39m
+  # ... with 38 more columns
+)
+"
+"2","See spec(...) for full column specifications.
+"
