@@ -112,8 +112,9 @@ airbnb_sorted %>%
 airbnb <- airbnb %>%
   mutate(prop_type_simplified = case_when(
     property_type %in% c("Apartment","Serviced apartment", "Loft","House") ~ property_type, 
-    TRUE ~ "Other"
+   TRUE ~ "Other"
   ))
+
 
 airbnb %>%
   count(property_type, prop_type_simplified) %>%
