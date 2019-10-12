@@ -1,30 +1,143 @@
 ---
-title: "Frixos"
-author: "Frixos Larkos"
-date: "10/10/2019"
+title: "Group Assignment"
+author: "Group 16"
+date: "09/10/2019"
 output: html_document
 ---
 
-```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE)
+```{r huxtable-stuff, include=FALSE}
+options("huxtable.knit_print_df" = FALSE)
+library(lubridate)
+library(here)
+library(moderndive)
+library(tidyverse)
+library(ggfortify)
+library(infer)
+library(mosaic)
+library(huxtable)
+library(kableExtra)
+library(tidyquant)
+library(readxl) #need to load readxl explicitly, as it is not a core tidyverse 
+library(GGally)
+library(broom)
+library(scales)
+#library(plotly) # Animation of graphs and tables
+# library(DT) 
 ```
 
-## R Markdown
+# Explanatory Data Analysis (EDA)
 
-This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
+```{r load_data}
 
-When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
+raw_data <- read_csv(here::here('Data', 'listings.csv.gz'))
 
-```{r cars}
-summary(cars)
 ```
 
-## Including Plots
 
-You can also embed plots, for example:
+## Looking at raw values
 
-```{r pressure, echo=FALSE}
-plot(pressure)
+```{r EDA}
+
+glimpse(raw_data)
+
 ```
 
-Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
+## Looking at summary statistics
+
+```{r summary_stats}
+
+mosaic::favstats(price ~ city, data = raw_data)
+
+skimr::skim(raw_data)
+
+```
+
+## Cleaning Data
+
+```{r clean_data}
+
+clean_data <- raw_data %>% 
+  # 1.1 Data Wrangling
+  mutate_at(c("price", "weekly_price", "monthly_price", "cleaning_fee", "extra_people", "security_deposit"), parse_number) %>% 
+  # 1.2 Missing values
+  mutate(cleaning_fee = 
+           case_when(is.na(cleaning_fee) ~ 0, 
+                     TRUE ~ cleaning_fee),
+         # Property type simplified column added
+         prop_type_simplified = 
+           case_when(property_type %in% c("Apartment","Serviced apartment", "Loft","House") ~ property_type, 
+                     TRUE ~ "Other"))
+
+# Summary
+glimpse(clean_data)
+
+# Frequency analysis of property types
+
+clean_data_sorted <- clean_data %>% 
+  group_by(property_type) %>% 
+  summarize("Count" = n()) %>% 
+  arrange(desc(Count)) %>%
+  head()
+
+# clean_data %>%
+#   count(property_type, prop_type_simplified) %>%
+#   arrange(desc(n))  
+
+
+```
+
+
+**Answer at minimum**: 
+*1. How many variables/columns? How many rows/observations?* 
+
+There are 106 variables and 19833 observations
+
+*2. Which variables are numbers?*
+
+(skim table - numeric)
+
+3. Which are categorical or factor variables (numeric or character variables with variables that have a fixed and known set of possible values?
+
+?
+
+4. What are the correlations between variables? 
+
+
+5. Does each scatterplot support a linear relationship between variables?
+
+6. Do any of the correlations appear to be conditional on the value of a categorical variable?
+
+##  Visualisations
+
+```{r visualizations, echo=TRUE, message=FALSE, warning=FALSE}
+
+raw_data %>%
+  #mutate(host_is_superhost = case_when(
+    #host_is_superhost %in% TRUE ~ superhost, FALSE ~ non_superhost, NA)) %>%
+  select(host_is_superhost, price, review_scores_rating) %>%
+  na.omit() %>%
+  ggpairs(aes(colour = host_is_superhost, alpha = 0.3)) +
+  theme_bw() 
+
+```
+
+
+# Mapping
+
+```{r MAP, echo=TRUE, message=FALSE, warning=FALSE}
+
+library(leaflet)
+
+leaflet(data = filter(raw_data, minimum_nights <= 4)) %>% 
+  addProviderTiles("OpenStreetMap.Mapnik") %>% 
+  addCircleMarkers(lng = ~longitude, 
+                   lat = ~latitude, 
+                   radius = 1, 
+                   fillColor = "blue", 
+                   fillOpacity = 0.4, 
+                   popup = ~listing_url,
+                   label = ~property_type)
+
+```
+
+# Regressions
