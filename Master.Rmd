@@ -34,6 +34,10 @@ library(plotly) # Animation of graphs and tables
 library(DT)
 ```
 
+# Abstract
+
+*sample text*
+
 # Explanatory Data Analysis
 
 ## Load Data
@@ -76,7 +80,7 @@ clean_data <- raw_data %>%
          host_verifications, host_identity_verified, neighbourhood_group_cleansed, city, state, zipcode, latitude, longitude,
          property_type, room_type, accommodates, bathrooms, bedrooms, beds, bed_type, square_feet, price, weekly_price, monthly_price, 
          security_deposit, cleaning_fee, guests_included, extra_people, minimum_nights, maximum_nights, number_of_reviews,
-         review_scores_rating, instant_bookable, cancellation_policy, prop_type_simplified, listing_url)
+         review_scores_rating, instant_bookable, cancellation_policy, prop_type_simplified, listing_url, is_location_exact)
 
 # Frequency analysis of property types
 
@@ -245,4 +249,49 @@ autoplot(model4)
 
 ```
 
+
+## Model 5
+
+Most owners advertise the exact location of their listing (is_location_exact == TRUE), while a non-trivial proportion don’t. After controlling for other variables, is a listing’s exact location a significant predictor of price_4_nights?
+
+```{r model5}
+
+model5 <- lm(price_4_nights ~ prop_type_simplified + number_of_reviews + review_scores_rating + room_type + is_location_exact, data = clean_data)
+
+get_regression_table(model5)
+
+get_regression_summaries(model5)
+
+autoplot(model5)
+
+```
+
+
+## Model 6
+
+For all cities, there are 3 variables that relate to neighbourhoods: neighbourhood, neighbourhood_cleansed, and neighbourhood_group_cleansed. There are typically more than 20 neighbourhoods in each city, and it wouldn’t make sense to include them all in your model. Use your city knowledge, or ask someone with city knowledge, and see whether you can group neighbourhoods together so the majority of listings falls in fewer (5-6 max) geographical areas. You would thus need to create a new categorical variabale neighbourhood_simplified and determine whether location is a predictor of price_4_nights
+
+
+## Model 7
+
+What is the effect of cancellation_policy on price_4_nights, after we control for other variables?
+
+```{r model7}
+
+model7 <- lm(price_4_nights ~ prop_type_simplified + number_of_reviews + review_scores_rating + room_type + cancellation_policy, data = clean_data)
+
+get_regression_table(model7)
+
+get_regression_summaries(model7)
+
+autoplot(model7)
+
+```
+
 ## Final Model
+
+# Conclusion
+
+## Rationale
+
+## Significance and diagnostics 
