@@ -4,11 +4,12 @@ author: "Group 16"
 date: "`r Sys.Date()`"
 output:
   html_document:
-    theme: journal
+    theme: readable
     highlight: zenburn
     toc: yes
     toc_float: yes
     number_sections: true
+    code_folding: hide
 ---
 
 ```{r huxtable-stuff, message=FALSE, warning=FALSE, include=FALSE}
@@ -27,6 +28,8 @@ library(readxl) #need to load readxl explicitly, as it is not a core tidyverse
 library(GGally)
 library(broom)
 library(scales)
+library(kableExtra)
+library(knitr)
 library(plotly) # Animation of graphs and tables
 library(DT)
 ```
@@ -37,48 +40,21 @@ library(DT)
 
 ```{r load_data, message=FALSE, warning=FALSE}
 
-raw_data <- read_csv(here::here('Data', 'listings.csv.gz'))
+# Used link rather than downloading data to allow for reproducability
+raw_data <- read_csv("http://data.insideairbnb.com/spain/catalonia/barcelona/2019-07-10/data/listings.csv.gz") 
 
 ```
 
 
-## Looking at raw values
+## Looking at raw data
 
-```{r EDA, message=FALSE, warning=FALSE}
+```{r EDA, message=FALSE, warning=FALSE, include=FALSE}
 
 glimpse(raw_data)
-
-```
-
-## Looking at summary statistics
-
-```{r summary_stats, message=FALSE, warning=FALSE}
-
-mosaic::favstats(price ~ city, data = raw_data)
 
 skimr::skim(raw_data)
 
 ```
-
-**Answer at minimum**:
-
-*1. How many variables/columns? How many rows/observations?* 
-
-* There are `r ncol(raw_data)` variables and `r nrow(raw_data)` observations.
-
-*2. Which variables are numbers?*
-
-(skim table - numeric)
-
-3. Which are categorical or factor variables (numeric or character variables with variables that have a fixed and known set of possible values?
-
-?
-
-4. What are the correlations between variables? 
-
-5. Does each scatterplot support a linear relationship between variables?
-
-6. Do any of the correlations appear to be conditional on the value of a categorical variable?
 
 ## Cleaning Data
 
@@ -94,10 +70,13 @@ clean_data <- raw_data %>%
          # Property type simplified column added
          prop_type_simplified = 
            case_when(property_type %in% c("Apartment","Serviced apartment", "Loft","House") ~ property_type, 
-                     TRUE ~ "Other"))
-
-# Summary
-glimpse(clean_data)
+                     TRUE ~ "Other")) %>% 
+  # select only useful variables
+  select(id, host_id, host_location, host_response_rate, host_is_superhost, host_acceptance_rate, host_listings_count,
+         host_verifications, host_identity_verified, neighbourhood_group_cleansed, city, state, zipcode, latitude, longitude,
+         property_type, room_type, accommodates, bathrooms, bedrooms, beds, bed_type, square_feet, price, weekly_price, monthly_price, 
+         security_deposit, cleaning_fee, guests_included, extra_people, minimum_nights, maximum_nights, number_of_reviews,
+         review_scores_rating, instant_bookable, cancellation_policy, prop_type_simplified, listing_url)
 
 # Frequency analysis of property types
 
@@ -113,6 +92,37 @@ clean_data %>%
 
 ```
 
+## Exploring relationships
+
+```{r}
+
+glimpse(clean_data)
+
+mosaic::favstats(price ~ square_feet, data = clean_data)
+
+skimr::skim(clean_data)
+
+```
+
+**Answer at minimum**:
+
+*1. How many variables/columns? How many rows/observations?* 
+
+* There are `r ncol(raw_data)` variables and `r nrow(raw_data)` observations.
+
+*2. Which variables are numbers?*
+
+`r select_if(raw_data, is.numeric) %>% colnames()`
+
+3. Which are categorical or factor variables (numeric or character variables with variables that have a fixed and known set of possible values?
+
+?
+
+4. What are the correlations between variables? 
+
+5. Does each scatterplot support a linear relationship between variables?
+
+6. Do any of the correlations appear to be conditional on the value of a categorical variable?
 
 ##  Visualisations
 
@@ -136,12 +146,12 @@ clean_data %>%
 
 library(leaflet)
 
-leaflet(data = filter(raw_data, minimum_nights <= 4)) %>% 
+leaflet(data = filter(clean_data, minimum_nights <= 4)) %>% 
   addProviderTiles("OpenStreetMap.Mapnik") %>% 
   addCircleMarkers(lng = ~longitude, 
                    lat = ~latitude, 
                    radius = 1, 
-                   fillColor = "blue", 
+                   fillColor = ~, 
                    fillOpacity = 0.4, 
                    popup = ~listing_url,
                    label = ~property_type)
@@ -179,6 +189,8 @@ get_regression_table(model1)
 
 get_regression_summaries(model1)
 
+autoplot(model1)
+
 ```
 
 * *Interpret the coefficient review_scores_rating in terms of price_4_nights.*
@@ -186,13 +198,15 @@ get_regression_summaries(model1)
 
 ## Model 2
 
-```{r model1}
+```{r model2}
 
 model2 <- lm(price_4_nights ~ prop_type_simplified + number_of_reviews + review_scores_rating + room_type, data = clean_data)
 
 get_regression_table(model2)
 
 get_regression_summaries(model2)
+
+autoplot(model2)
 
 ```
 
