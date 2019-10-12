@@ -212,6 +212,37 @@ autoplot(model2)
 
 *We want to determine if room_type is a significant predictor of the cost for 4 nights, given everything else in the model.*
 
-## Further iterations
+## Model 3
+
+*Are the number of bathrooms, bedrooms, beds, or size of the house (accommodates) significant predictors of price_4_nights?*
+
+```{r model3}
+
+model3 <- lm(price_4_nights ~ bathrooms + bedrooms + beds + accommodates, data = clean_data)
+
+get_regression_table(model3)
+
+get_regression_summaries(model3)
+
+autoplot(model3)
+
+```
+
+
+## Model 4
+
+*Do superhosts (host_is_superhost) command a pricing premium, after controlling for other variables?*
+
+```{r model4}
+
+model4 <- lm(price_4_nights ~ prop_type_simplified + number_of_reviews + review_scores_rating + room_type + host_is_superhost, data = clean_data)
+
+get_regression_table(model4)
+
+get_regression_summaries(model4)
+
+autoplot(model4)
+
+```
 
 ## Final Model
