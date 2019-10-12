@@ -1,11 +1,17 @@
 ---
-title: "Group Assignment"
+title: "Data Analytics Group Assignment"
 author: "Group 16"
-date: "09/10/2019"
-output: html_document
+date: "`r Sys.Date()`"
+output:
+  html_document:
+    theme: journal
+    highlight: zenburn
+    toc: yes
+    toc_float: yes
+    number_sections: true
 ---
 
-```{r huxtable-stuff, include=FALSE}
+```{r huxtable-stuff, message=FALSE, warning=FALSE, include=FALSE}
 options("huxtable.knit_print_df" = FALSE)
 library(lubridate)
 library(here)
@@ -21,13 +27,15 @@ library(readxl) #need to load readxl explicitly, as it is not a core tidyverse
 library(GGally)
 library(broom)
 library(scales)
-#library(plotly) # Animation of graphs and tables
-# library(DT) 
+library(plotly) # Animation of graphs and tables
+library(DT)
 ```
 
-# Explanatory Data Analysis (EDA)
+# Explanatory Data Analysis
 
-```{r load_data}
+## Load Data
+
+```{r load_data, message=FALSE, warning=FALSE}
 
 raw_data <- read_csv(here::here('Data', 'listings.csv.gz'))
 
@@ -36,7 +44,7 @@ raw_data <- read_csv(here::here('Data', 'listings.csv.gz'))
 
 ## Looking at raw values
 
-```{r EDA}
+```{r EDA, message=FALSE, warning=FALSE}
 
 glimpse(raw_data)
 
@@ -44,7 +52,7 @@ glimpse(raw_data)
 
 ## Looking at summary statistics
 
-```{r summary_stats}
+```{r summary_stats, message=FALSE, warning=FALSE}
 
 mosaic::favstats(price ~ city, data = raw_data)
 
@@ -52,9 +60,29 @@ skimr::skim(raw_data)
 
 ```
 
+**Answer at minimum**:
+
+*1. How many variables/columns? How many rows/observations?* 
+
+* There are `r ncol(raw_data)` variables and `r nrow(raw_data)` observations.
+
+*2. Which variables are numbers?*
+
+(skim table - numeric)
+
+3. Which are categorical or factor variables (numeric or character variables with variables that have a fixed and known set of possible values?
+
+?
+
+4. What are the correlations between variables? 
+
+5. Does each scatterplot support a linear relationship between variables?
+
+6. Do any of the correlations appear to be conditional on the value of a categorical variable?
+
 ## Cleaning Data
 
-```{r clean_data}
+```{r clean_data, message=FALSE, warning=FALSE}
 
 clean_data <- raw_data %>% 
   # 1.1 Data Wrangling
@@ -79,45 +107,25 @@ clean_data_sorted <- clean_data %>%
   arrange(desc(Count)) %>%
   head()
 
-# clean_data %>%
-#   count(property_type, prop_type_simplified) %>%
-#   arrange(desc(n))  
-
+clean_data %>%
+  count(property_type, prop_type_simplified) %>%
+  arrange(desc(n))
 
 ```
 
-
-**Answer at minimum**: 
-*1. How many variables/columns? How many rows/observations?* 
-
-There are 106 variables and 19833 observations
-
-*2. Which variables are numbers?*
-
-(skim table - numeric)
-
-3. Which are categorical or factor variables (numeric or character variables with variables that have a fixed and known set of possible values?
-
-?
-
-4. What are the correlations between variables? 
-
-
-5. Does each scatterplot support a linear relationship between variables?
-
-6. Do any of the correlations appear to be conditional on the value of a categorical variable?
 
 ##  Visualisations
 
 ```{r visualizations, echo=TRUE, message=FALSE, warning=FALSE}
 
-raw_data %>%
+clean_data %>%
   #mutate(host_is_superhost = case_when(
     #host_is_superhost %in% TRUE ~ superhost, FALSE ~ non_superhost, NA)) %>%
   select(host_is_superhost, price, review_scores_rating) %>%
   na.omit() %>%
   ggpairs(aes(colour = host_is_superhost, alpha = 0.3)) +
   theme_bw() 
+  
 
 ```
 
@@ -140,4 +148,56 @@ leaflet(data = filter(raw_data, minimum_nights <= 4)) %>%
 
 ```
 
-# Regressions
+# Regression Analysis
+
+## Visual Inspection
+
+```{r Visual Analysis}
+
+clean_data <- clean_data %>% 
+  mutate(price_4_nights = 4*price + cleaning_fee + guests_included + extra_people)
+
+clean_data %>% 
+  ggplot(aes(x = price_4_nights)) +
+  geom_density() 
+
+clean_data %>% 
+  ggplot(aes(x = log(price_4_nights))) +
+  geom_density()
+
+```
+
+*Which variable should you use for the regression model? Why?*
+
+## Model 1
+
+```{r model1}
+
+model1 <- lm(price_4_nights ~ prop_type_simplified + number_of_reviews + review_scores_rating, data = clean_data)
+
+get_regression_table(model1)
+
+get_regression_summaries(model1)
+
+```
+
+* *Interpret the coefficient review_scores_rating in terms of price_4_nights.*
+* *Interpret the coefficient of prop_type_simplified in terms of price_4_nights.*
+
+## Model 2
+
+```{r model1}
+
+model2 <- lm(price_4_nights ~ prop_type_simplified + number_of_reviews + review_scores_rating + room_type, data = clean_data)
+
+get_regression_table(model2)
+
+get_regression_summaries(model2)
+
+```
+
+*We want to determine if room_type is a significant predictor of the cost for 4 nights, given everything else in the model.*
+
+## Further iterations
+
+## Final Model
