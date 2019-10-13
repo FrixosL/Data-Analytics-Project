@@ -31,6 +31,7 @@ library(scales)
 library(kableExtra)
 library(knitr)
 library(leaflet)
+library(car)
 library(plotly) # Animation of graphs and tables
 library(DT)
 ```
@@ -72,7 +73,7 @@ clean_data <- raw_data %>%
   select(host_is_superhost, host_listings_count, host_identity_verified, neighbourhood_group_cleansed, city, zipcode,
          property_type, room_type, accommodates, bathrooms, bedrooms, beds, square_feet, price, weekly_price, monthly_price, 
          security_deposit, cleaning_fee, guests_included, extra_people, minimum_nights, maximum_nights, number_of_reviews,
-         review_scores_rating, instant_bookable, cancellation_policy, is_location_exact) %>% 
+         review_scores_rating, instant_bookable, cancellation_policy, is_location_exact, host_total_listings_count) %>% 
   # 1.1 Data Wrangling
   mutate_at(c("price", "weekly_price", "monthly_price", "cleaning_fee", "extra_people", "security_deposit"), parse_number) %>% 
   # 1.2 Missing values
@@ -201,11 +202,13 @@ get_regression_summaries(model1)
 
 autoplot(model1)
 
+vif(model1)
+
 ```
 
-* review_scores: the estimate for this variable is -0.004	, denoting a very slight negative correlation with our dependent variable "log(price)". Moreover, looking at both the t-statistic (-6.321) and the p-value (0.000), we can conclude that the estimate is statistically significant at a 95% level.
+* review_scores: the estimate for this variable is -0.006	, denoting a very slight negative correlation with our dependent variable "log(price)". Moreover, looking at both the t-statistic (-7.781) and the p-value (0.000), we can conclude that the estimate is statistically significant at a 95% level.
 
-* prop_type_simplified: being a dummy variable the interpretation for this variables is different, choosing "Apartment" as our base value we are now studying the incremental effect, on avergage, that different types of property have on the dependent variable. Simply from looking at the p-values, we can infer that Other, 0.157, is not significant at a 95% level therefore not providing much explainatory power to our model. When looking at the other categories, their interpretation is different as they all show p-values of zero.
+* prop_type_simplified: being a dummy variable the interpretation for this variables is different, choosing "Apartment" as our base value we are now studying the incremental effect, on avergage, that different types of property have on the dependent variable. Simply from looking at the p-values, we can infer that Other, 0.080, is not significant at a 95% level therefore not providing much explenatory power to our model. When looking at the other categories, their interpretation is different as they all show p-values lower than 0.05.
 
 * number_of_reviews is insignificant so remove it
 
@@ -221,15 +224,15 @@ get_regression_summaries(model2)
 
 autoplot(model2)
 
+vif(model2)
+
 ```
 
-*We want to determine if room_type is a significant predictor of the cost for 4 nights, given everything else in the model.*
+*room_type: by simply adding this variable to our model we can see a significant improvement to the adjusted R2. The value improves from 0.041	to 0.493. Moreover, the estimate itself is significant in all its different categories and denotes the cheaper prices for houses that are shared, either with private or shared room.
 
 ## Model 3
 
-*Are the number of bathrooms, bedrooms, beds, or size of the house (accommodates) significant predictors of log_price_4_nights?*
-
-* Only bedrooms is not significant
+* While all the new dummy variables appear significant at the 95% level when looking at their p-values, it seems odd that while bedrooms positively affect the dependent variable, it is the opposite for the number of beds. This phenomenon is likely to be explained by the multi-collinearity between the two variables.
 
 ```{r model3}
 
@@ -241,12 +244,14 @@ get_regression_summaries(model3)
 
 autoplot(model3)
 
+vif(model3)
+
 ```
 
 
 ## Model 4
 
-*Do superhosts (host_is_superhost) command a pricing premium, after controlling for other variables?*
+* From our regression it does appear that superhosts require a slight price premium, the estimate takes a value of 0.073 significant at a 95% level (p-value = .000). It terms of the goodnessof fit of our model, the Adjusted R2 is now 0.565, exactly the same as before implying that the premium commanded by "superhosts" doesn't really add explenatory power to our model.
 
 ```{r model4}
 
@@ -258,14 +263,14 @@ get_regression_summaries(model4)
 
 autoplot(model4)
 
+vif(model4)
+
 ```
 
 
 ## Model 5
 
-Most owners advertise the exact location of their listing (is_location_exact == TRUE), while a non-trivial proportion don’t. After controlling for other variables, is a listing’s exact location a significant predictor of log_price_4_nights?
-
-*is_location_exact is not significant so remove it*
+* is_location_exact is not significant at a 95% level (p-value = 0.455) so we should remove it.
 
 ```{r model5}
 
@@ -277,12 +282,12 @@ get_regression_summaries(model5)
 
 autoplot(model5)
 
+vif(model5)
+
 ```
 
 
 ## Model 6
-
-For all cities, there are 3 variables that relate to neighbourhoods: neighbourhood, neighbourhood_cleansed, and neighbourhood_group_cleansed. There are typically more than 20 neighbourhoods in each city, and it wouldn’t make sense to include them all in your model. Use your city knowledge, or ask someone with city knowledge, and see whether you can group neighbourhoods together so the majority of listings falls in fewer (5-6 max) geographical areas. You would thus need to create a new categorical variabale neighbourhood_simplified and determine whether location is a predictor of log_price_4_nights
 
 ```{r model6}
 
@@ -294,15 +299,21 @@ get_regression_summaries(model6)
 
 autoplot(model6)
 
+vif(model6)
+
 ```
+
+To better understand our findings we grouped our 10 initial locations in to 3 bigger areas: North, South and Center setting the latter as our base-line. From this new model we can see that the Central region is clearly the most expensive and North is the cheapest on average. P-values for all are below 0.05 so we can accept the estimates as significant at 95%. By adding this division into bigger areas we can also notice an improvement to our adjusted R2 from 0.565 to 0.57
 
 ## Model 7
 
 What is the effect of cancellation_policy on log_price_4_nights, after we control for other variables?
 
+*cancellation_policy not sign so remove, except 14 and strict 30*
+
 ```{r model7}
 
-model7 <- lm(log_price_4_nights ~ prop_type_simplified + number_of_reviews + review_scores_rating + room_type + cancellation_policy, data = clean_data)
+model7 <- lm(log_price_4_nights ~ prop_type_simplified + review_scores_rating + room_type + bathrooms + beds + accommodates + host_is_superhost + region_by_price + cancellation_policy, data = clean_data)
 
 get_regression_table(model7)
 
@@ -310,12 +321,78 @@ get_regression_summaries(model7)
 
 autoplot(model7)
 
+vif(model7)
+
 ```
+
+We have now added the cancellation_policy dummy variable that refers to how many days before arrival you can still cancel the booking and get a refund. We can infer that this variable is not significant at a 95% level for the most part. Only "super strict policy" and "14 with grace" show acceptable p-values, but we considered this not enough to keep the variable. Morever it adds only 0.002 to the adjusted R2, a negligible effect.
 
 ## Final Model
 
+```{r model_final}
+
+model_final <- lm(log_price_4_nights ~ prop_type_simplified + review_scores_rating + room_type + bathrooms + beds + accommodates + host_is_superhost + region_by_price + host_total_listings_count + instant_bookable + guests_included + security_deposit + number_of_reviews, data = clean_data)
+
+get_regression_table(model_final)
+
+get_regression_summaries(model_final)
+
+autoplot(model_final)
+
+vif(model_final)
+
+```
+
 # Conclusion
+
+```{r}
+
+huxtable::huxreg(
+  "Model 1" = model1, 
+  "Model 2" = model2, 
+  "Model 3" = model3, 
+  "Model 4" = model4,
+  "Model 5" = model5,
+  "Model 6" = model6,
+  "Model 7" = model7,
+  "Final Model" = model_final,
+  number_format = "%.2f",
+  bold_signif = 0.5,
+  statistics = c("Residuals" = "sigma", 'Adjusted R squared' = 'adj.r.squared', 'F statistic' = 'statistic',
+  'P value' = 'p.value')) %>% 
+  set_caption("Airbnb Barcelona models")
+
+```
+
+```{r}
+
+model_final <- lm(log_price_4_nights ~ prop_type_simplified + review_scores_rating + room_type + bathrooms + beds + accommodates + host_is_superhost + region_by_price + host_total_listings_count + instant_bookable + guests_included + cleaning_fee + extra_people + security_deposit + number_of_reviews, data = clean_data)
+
+```
+
+## Assumptions
+
+* number_of_reviews 10
+* 4 nights
+* Private room
+* 2 guests 
+* Average rating > 90%
+* Property type Apartment
+* Bathrooms 1
+* Beds 2
+* Accomodates 2
+* host is superhost
+* region center
+* host_total_listing_count avg of 20
+* insta bookable
+* guests_included 2
+* security_deposit 245
 
 ## Rationale
 
 ## Significance and diagnostics 
+
+host_is_superhost, host_listings_count, host_identity_verified, neighbourhood_group_cleansed, city, zipcode,
+         property_type, room_type, accommodates, bathrooms, bedrooms, beds, square_feet, price, weekly_price, monthly_price, 
+         security_deposit, cleaning_fee, guests_included, extra_people, minimum_nights, maximum_nights, number_of_reviews,
+         review_scores_rating, instant_bookable, cancellation_policy, is_location_exact, host_total_listings_count
