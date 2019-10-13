@@ -14,6 +14,10 @@ output:
 
 ```{r huxtable-stuff, message=FALSE, warning=FALSE, include=FALSE}
 options("huxtable.knit_print_df" = FALSE)
+
+# If you don't have the corrplot package installed delete the comment from line below and run it
+# install.packages("corrplot")
+
 library(lubridate)
 library(here)
 library(moderndive)
