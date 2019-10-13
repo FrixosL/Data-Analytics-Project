@@ -65,7 +65,9 @@ skimr::skim(raw_data)
 
 ```{r clean_data, message=FALSE, warning=FALSE}
 
-clean_data <- raw_data %>% 
+clean_data <- raw_data %>%
+  # Filter for leisure purporses only
+  filter(minimum_nights <= 4) %>% 
   # select only useful variables
   select(host_is_superhost, host_listings_count, host_identity_verified, neighbourhood_group_cleansed, city, zipcode,
          property_type, room_type, accommodates, bathrooms, bedrooms, beds, square_feet, price, weekly_price, monthly_price, 
@@ -79,7 +81,7 @@ clean_data <- raw_data %>%
                      TRUE ~ cleaning_fee),
          # Property type simplified column added
          prop_type_simplified = 
-           case_when(property_type %in% c("Apartment","Serviced apartment", "Loft","House") ~ property_type, 
+           case_when(property_type %in% c("Apartment","Serviced apartment","Loft","House") ~ property_type,
                      TRUE ~ "Other"),
          region_by_price =
            case_when(neighbourhood_group_cleansed %in% c("Eixample", "Gràcia", "Sant Martí", "Sarrià-Sant Gervasi") ~ "Center",
@@ -147,6 +149,9 @@ clean_data %>%
   ggpairs(aes(colour = host_is_superhost, alpha = 0.3)) +
   theme_bw() 
 
+
+ raw_data %>% filter(minimum_nights < 50) %>%  ggplot(aes(x=minimum_nights)) + geom_density()
+
 ```
 
 
@@ -198,14 +203,17 @@ autoplot(model1)
 
 ```
 
-* *Interpret the coefficient review_scores_rating in terms of log_price_4_nights.*
-* *Interpret the coefficient of prop_type_simplified in terms of log_price_4_nights.*
+* review_scores: the estimate for this variable is -0.004	, denoting a very slight negative correlation with our dependent variable "log(price)". Moreover, looking at both the t-statistic (-6.321) and the p-value (0.000), we can conclude that the estimate is statistically significant at a 95% level.
+
+* prop_type_simplified: being a dummy variable the interpretation for this variables is different, choosing "Apartment" as our base value we are now studying the incremental effect, on avergage, that different types of property have on the dependent variable. Simply from looking at the p-values, we can infer that Other, 0.157, is not significant at a 95% level therefore not providing much explainatory power to our model. When looking at the other categories, their interpretation is different as they all show p-values of zero.
+
+* number_of_reviews is insignificant so remove it
 
 ## Model 2
 
 ```{r model2}
 
-model2 <- lm(log_price_4_nights ~ prop_type_simplified + number_of_reviews + review_scores_rating + room_type, data = clean_data)
+model2 <- lm(log_price_4_nights ~ prop_type_simplified + review_scores_rating + room_type, data = clean_data)
 
 get_regression_table(model2)
 
@@ -221,9 +229,11 @@ autoplot(model2)
 
 *Are the number of bathrooms, bedrooms, beds, or size of the house (accommodates) significant predictors of log_price_4_nights?*
 
+* Only bedrooms is not significant
+
 ```{r model3}
 
-model3 <- lm(log_price_4_nights ~ prop_type_simplified + number_of_reviews + review_scores_rating + room_type + bathrooms + bedrooms + beds + accommodates, data = clean_data)
+model3 <- lm(log_price_4_nights ~ prop_type_simplified + review_scores_rating + room_type + bathrooms + bedrooms + beds + accommodates, data = clean_data)
 
 get_regression_table(model3)
 
@@ -240,7 +250,7 @@ autoplot(model3)
 
 ```{r model4}
 
-model4 <- lm(log_price_4_nights ~ prop_type_simplified + number_of_reviews + review_scores_rating + room_type + host_is_superhost, data = clean_data)
+model4 <- lm(log_price_4_nights ~ prop_type_simplified + review_scores_rating + room_type + bathrooms + beds + accommodates + host_is_superhost, data = clean_data)
 
 get_regression_table(model4)
 
@@ -255,9 +265,11 @@ autoplot(model4)
 
 Most owners advertise the exact location of their listing (is_location_exact == TRUE), while a non-trivial proportion don’t. After controlling for other variables, is a listing’s exact location a significant predictor of log_price_4_nights?
 
+*is_location_exact is not significant so remove it*
+
 ```{r model5}
 
-model5 <- lm(log_price_4_nights ~ prop_type_simplified + number_of_reviews + review_scores_rating + room_type + is_location_exact, data = clean_data)
+model5 <- lm(log_price_4_nights ~ prop_type_simplified + review_scores_rating + room_type + bathrooms + beds + accommodates + host_is_superhost + is_location_exact, data = clean_data)
 
 get_regression_table(model5)
 
@@ -272,6 +284,17 @@ autoplot(model5)
 
 For all cities, there are 3 variables that relate to neighbourhoods: neighbourhood, neighbourhood_cleansed, and neighbourhood_group_cleansed. There are typically more than 20 neighbourhoods in each city, and it wouldn’t make sense to include them all in your model. Use your city knowledge, or ask someone with city knowledge, and see whether you can group neighbourhoods together so the majority of listings falls in fewer (5-6 max) geographical areas. You would thus need to create a new categorical variabale neighbourhood_simplified and determine whether location is a predictor of log_price_4_nights
 
+```{r model6}
+
+model6 <- lm(log_price_4_nights ~ prop_type_simplified + review_scores_rating + room_type + bathrooms + beds + accommodates + host_is_superhost + region_by_price, data = clean_data)
+
+get_regression_table(model6)
+
+get_regression_summaries(model6)
+
+autoplot(model6)
+
+```
 
 ## Model 7
 
