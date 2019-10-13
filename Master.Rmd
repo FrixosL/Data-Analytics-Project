@@ -32,6 +32,8 @@ library(kableExtra)
 library(knitr)
 library(leaflet)
 library(car)
+library(corrplot)
+library(ggthemes)
 library(plotly) # Animation of graphs and tables
 library(DT)
 ```
@@ -73,7 +75,8 @@ clean_data <- raw_data %>%
   select(host_is_superhost, host_listings_count, host_identity_verified, neighbourhood_group_cleansed, city, zipcode,
          property_type, room_type, accommodates, bathrooms, bedrooms, beds, square_feet, price, weekly_price, monthly_price, 
          security_deposit, cleaning_fee, guests_included, extra_people, minimum_nights, maximum_nights, number_of_reviews,
-         review_scores_rating, instant_bookable, cancellation_policy, is_location_exact, host_total_listings_count) %>% 
+         review_scores_rating, instant_bookable, cancellation_policy, is_location_exact, host_total_listings_count, longitude, 
+         latitude, listing_url) %>% 
   # 1.1 Data Wrangling
   mutate_at(c("price", "weekly_price", "monthly_price", "cleaning_fee", "extra_people", "security_deposit"), parse_number) %>% 
   # 1.2 Missing values
@@ -89,7 +92,7 @@ clean_data <- raw_data %>%
                      neighbourhood_group_cleansed %in% c("Sant Andreu", "Nou Barris", "Horta-Guinardó") ~ "North",
                      neighbourhood_group_cleansed %in% c("Sants-Montjuïc", "Ciutat Vella", "Les Corts") ~ "South"),
          # Calculate price for 4 nights for two people
-         price_4_nights = 4*price + cleaning_fee + ifelse(guests_included < 2, (2 - guests_included) * extra_people, 0),
+         price_4_nights = 4*price + cleaning_fee + 4*ifelse(guests_included < 2, (2 - guests_included) * extra_people, 0),
          log_price_4_nights = log(price_4_nights))
 
 # Frequency analysis of property types
@@ -130,13 +133,68 @@ skimr::skim(clean_data)
 
 3. Which are categorical or factor variables (numeric or character variables with variables that have a fixed and known set of possible values?
 
-?
+  These are the following caterorical variables: `r select_if(raw_data, is.numeric) %>% colnames()`
+
+  These are the following factor variables: `r select_if(raw_data, is.factor) %>% colnames()`
 
 4. What are the correlations between variables? 
 
+```{r}
+#install("corrplot")
+library('corrplot')
+
+cormatrix <- clean_data %>% 
+  drop_na() %>% 
+  select(select_if(clean_data, is.numeric) %>% colnames())
+
+cor <- cor(cormatrix)
+
+corrplot(cor,method = 'circle')
+cor
+```
+
 5. Does each scatterplot support a linear relationship between variables?
 
+No
+
+```{r}
+ggplot(clean_data,aes(y=price,x=latitude))+geom_point()+labs(title="Relationship of Price and Latitude",y="Price",x="Latitude")+theme_bw()+scale_y_continuous(labels = scales::dollar)
+
+ggplot(clean_data,aes(y=price,x=longitude))+geom_point()+labs(title="Relationship of Price and Longitude",y="Price",x="Longitude")+theme_bw()+scale_y_continuous(labels = scales::dollar)
+
+ggplot(clean_data,aes(y=price,x=host_listings_count))+geom_point()+labs(title="Relationship of Price and host listings count",y="Price",x="host listing count")+theme_bw()+scale_y_continuous(labels = scales::dollar)
+
+ggplot(clean_data,aes(y=price,x=accommodates))+geom_point()+labs(title="Relationship of Price and accommodates",y="Price",x="Accommodates")+theme_bw()+scale_y_continuous(labels = scales::dollar)
+
+ggplot(clean_data,aes(y=price,x=bathrooms))+geom_point()+labs(title="Relationship of Price and bathrooms",y="Price",x="Bathrooms")+theme_bw()+scale_y_continuous(labels = scales::dollar)
+
+ggplot(clean_data,aes(y=price,x=bedrooms))+geom_point()+labs(title="Relationship of Price and bedrooms",y="Price",x="Bedrooms")+theme_bw()+scale_y_continuous(labels = scales::dollar)
+
+ggplot(clean_data,aes(y=price,x=beds))+geom_point()+labs(title="Relationship of Price and latitude",y="Price",x="Beds")+theme_bw()+scale_y_continuous(labels = scales::dollar)
+
+ggplot(clean_data,aes(y=price,x=square_feet))+geom_point()+labs(title="Relationship of Price and Square feet",y="Price",x="Square feet")+theme_bw()+scale_y_continuous(labels = scales::dollar)
+
+ggplot(clean_data,aes(y=price,x=security_deposit))+geom_point()+labs(title="Relationship of Price and Security deposit",y="Price",x="Security Deposit")+theme_bw()+scale_y_continuous(labels = scales::dollar)
+
+ggplot(clean_data,aes(y=price,x=cleaning_fee))+geom_point()+labs(title="Relationship of Price and Cleaning Fee",y="Price",x="Cleaning Fee")+theme_bw()+scale_y_continuous(labels = scales::dollar)
+
+ggplot(clean_data,aes(y=price,x=guests_included))+geom_point()+labs(title="Relationship of Price and Guests included",y="Price",x="Guests included")+theme_bw()+scale_y_continuous(labels = scales::dollar)
+
+ggplot(clean_data,aes(y=price,x=extra_people))+geom_point()+labs(title="Relationship of Price and Extra people",y="Price",x="Extra people")+theme_bw()+scale_y_continuous(labels = scales::dollar)
+
+ggplot(clean_data,aes(y=price,x=minimum_nights))+geom_point()+labs(title="Relationship of Price and Minimum Nights",y="Price",x="Minimum Nights")+theme_bw()+scale_y_continuous(labels = scales::dollar)
+
+ggplot(clean_data,aes(y=price,x=maximum_nights))+geom_point()+labs(title="Relationship of Price and Maximum Nights",y="Price",x="Maximum Nights")+theme_bw()+scale_y_continuous(labels = scales::dollar)
+
+ggplot(clean_data,aes(y=price,x=number_of_reviews))+geom_point()+labs(title="Relationship of Price and Number reviews",y="Price",x="Number reviews")+theme_bw()+scale_y_continuous(labels = scales::dollar)
+
+ggplot(clean_data,aes(y=price,x=review_scores_rating))+geom_point()+labs(title="Relationship of Price and Review scores rating",y="Price",x="Review scores rating")+theme_bw()+scale_y_continuous(labels = scales::dollar)
+
+```
+
 6. Do any of the correlations appear to be conditional on the value of a categorical variable?
+
+Yes, there are conditional correlations subject to the type of property they are renting.
 
 ##  Visualisations
 
@@ -149,9 +207,6 @@ clean_data %>%
   na.omit() %>%
   ggpairs(aes(colour = host_is_superhost, alpha = 0.3)) +
   theme_bw() 
-
-
- raw_data %>% filter(minimum_nights < 50) %>%  ggplot(aes(x=minimum_nights)) + geom_density()
 
 ```
 
@@ -366,7 +421,6 @@ huxtable::huxreg(
 
 ```{r}
 
-model_final <- lm(log_price_4_nights ~ prop_type_simplified + review_scores_rating + room_type + bathrooms + beds + accommodates + host_is_superhost + region_by_price + host_total_listings_count + instant_bookable + guests_included + cleaning_fee + extra_people + security_deposit + number_of_reviews, data = clean_data)
 
 ```
 
