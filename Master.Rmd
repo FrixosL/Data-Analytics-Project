@@ -30,6 +30,7 @@ library(broom)
 library(scales)
 library(kableExtra)
 library(knitr)
+library(leaflet)
 library(plotly) # Animation of graphs and tables
 library(DT)
 ```
@@ -52,7 +53,7 @@ raw_data <- read_csv("http://data.insideairbnb.com/spain/catalonia/barcelona/201
 
 ## Looking at raw data
 
-```{r EDA, message=FALSE, warning=FALSE, include=FALSE}
+```{r EDA, echo=TRUE, message=FALSE, warning=FALSE}
 
 glimpse(raw_data)
 
@@ -65,6 +66,11 @@ skimr::skim(raw_data)
 ```{r clean_data, message=FALSE, warning=FALSE}
 
 clean_data <- raw_data %>% 
+  # select only useful variables
+  select(host_is_superhost, host_listings_count, host_identity_verified, neighbourhood_group_cleansed, city, zipcode,
+         property_type, room_type, accommodates, bathrooms, bedrooms, beds, square_feet, price, weekly_price, monthly_price, 
+         security_deposit, cleaning_fee, guests_included, extra_people, minimum_nights, maximum_nights, number_of_reviews,
+         review_scores_rating, instant_bookable, cancellation_policy, is_location_exact) %>% 
   # 1.1 Data Wrangling
   mutate_at(c("price", "weekly_price", "monthly_price", "cleaning_fee", "extra_people", "security_deposit"), parse_number) %>% 
   # 1.2 Missing values
@@ -74,13 +80,14 @@ clean_data <- raw_data %>%
          # Property type simplified column added
          prop_type_simplified = 
            case_when(property_type %in% c("Apartment","Serviced apartment", "Loft","House") ~ property_type, 
-                     TRUE ~ "Other")) %>% 
-  # select only useful variables
-  select(id, host_id, host_location, host_response_rate, host_is_superhost, host_acceptance_rate, host_listings_count,
-         host_verifications, host_identity_verified, neighbourhood_group_cleansed, city, state, zipcode, latitude, longitude,
-         property_type, room_type, accommodates, bathrooms, bedrooms, beds, bed_type, square_feet, price, weekly_price, monthly_price, 
-         security_deposit, cleaning_fee, guests_included, extra_people, minimum_nights, maximum_nights, number_of_reviews,
-         review_scores_rating, instant_bookable, cancellation_policy, prop_type_simplified, listing_url, is_location_exact)
+                     TRUE ~ "Other"),
+         region_by_price =
+           case_when(neighbourhood_group_cleansed %in% c("Eixample", "Gràcia", "Sant Martí", "Sarrià-Sant Gervasi") ~ "Center",
+                     neighbourhood_group_cleansed %in% c("Sant Andreu", "Nou Barris", "Horta-Guinardó") ~ "North",
+                     neighbourhood_group_cleansed %in% c("Sants-Montjuïc", "Ciutat Vella", "Les Corts") ~ "South"),
+         # Calculate price for 4 nights for two people
+         price_4_nights = 4*price + cleaning_fee + ifelse(guests_included < 2, (2 - guests_included) * extra_people, 0),
+         log_price_4_nights = log(price_4_nights))
 
 # Frequency analysis of property types
 
@@ -139,7 +146,6 @@ clean_data %>%
   na.omit() %>%
   ggpairs(aes(colour = host_is_superhost, alpha = 0.3)) +
   theme_bw() 
-  
 
 ```
 
@@ -148,14 +154,12 @@ clean_data %>%
 
 ```{r MAP, echo=TRUE, message=FALSE, warning=FALSE}
 
-library(leaflet)
-
-leaflet(data = filter(clean_data, minimum_nights <= 4)) %>% 
+leaflet(data = filter(raw_data, minimum_nights <= 4)) %>% 
   addProviderTiles("OpenStreetMap.Mapnik") %>% 
   addCircleMarkers(lng = ~longitude, 
                    lat = ~latitude, 
                    radius = 1, 
-                   fillColor = ~, 
+                   fillColor = "blue", 
                    fillOpacity = 0.4, 
                    popup = ~listing_url,
                    label = ~property_type)
@@ -168,13 +172,10 @@ leaflet(data = filter(clean_data, minimum_nights <= 4)) %>%
 
 ```{r Visual Analysis}
 
-clean_data <- clean_data %>% 
-  mutate(price_4_nights = 4*price + cleaning_fee + guests_included + extra_people)
-
 clean_data %>% 
   ggplot(aes(x = price_4_nights)) +
   geom_density() 
-
+  
 clean_data %>% 
   ggplot(aes(x = log(price_4_nights))) +
   geom_density()
@@ -187,7 +188,7 @@ clean_data %>%
 
 ```{r model1}
 
-model1 <- lm(price_4_nights ~ prop_type_simplified + number_of_reviews + review_scores_rating, data = clean_data)
+model1 <- lm(log_price_4_nights ~ prop_type_simplified + number_of_reviews + review_scores_rating, data = clean_data)
 
 get_regression_table(model1)
 
@@ -197,14 +198,14 @@ autoplot(model1)
 
 ```
 
-* *Interpret the coefficient review_scores_rating in terms of price_4_nights.*
-* *Interpret the coefficient of prop_type_simplified in terms of price_4_nights.*
+* *Interpret the coefficient review_scores_rating in terms of log_price_4_nights.*
+* *Interpret the coefficient of prop_type_simplified in terms of log_price_4_nights.*
 
 ## Model 2
 
 ```{r model2}
 
-model2 <- lm(price_4_nights ~ prop_type_simplified + number_of_reviews + review_scores_rating + room_type, data = clean_data)
+model2 <- lm(log_price_4_nights ~ prop_type_simplified + number_of_reviews + review_scores_rating + room_type, data = clean_data)
 
 get_regression_table(model2)
 
@@ -218,11 +219,11 @@ autoplot(model2)
 
 ## Model 3
 
-*Are the number of bathrooms, bedrooms, beds, or size of the house (accommodates) significant predictors of price_4_nights?*
+*Are the number of bathrooms, bedrooms, beds, or size of the house (accommodates) significant predictors of log_price_4_nights?*
 
 ```{r model3}
 
-model3 <- lm(price_4_nights ~ bathrooms + bedrooms + beds + accommodates, data = clean_data)
+model3 <- lm(log_price_4_nights ~ prop_type_simplified + number_of_reviews + review_scores_rating + room_type + bathrooms + bedrooms + beds + accommodates, data = clean_data)
 
 get_regression_table(model3)
 
@@ -239,7 +240,7 @@ autoplot(model3)
 
 ```{r model4}
 
-model4 <- lm(price_4_nights ~ prop_type_simplified + number_of_reviews + review_scores_rating + room_type + host_is_superhost, data = clean_data)
+model4 <- lm(log_price_4_nights ~ prop_type_simplified + number_of_reviews + review_scores_rating + room_type + host_is_superhost, data = clean_data)
 
 get_regression_table(model4)
 
@@ -252,11 +253,11 @@ autoplot(model4)
 
 ## Model 5
 
-Most owners advertise the exact location of their listing (is_location_exact == TRUE), while a non-trivial proportion don’t. After controlling for other variables, is a listing’s exact location a significant predictor of price_4_nights?
+Most owners advertise the exact location of their listing (is_location_exact == TRUE), while a non-trivial proportion don’t. After controlling for other variables, is a listing’s exact location a significant predictor of log_price_4_nights?
 
 ```{r model5}
 
-model5 <- lm(price_4_nights ~ prop_type_simplified + number_of_reviews + review_scores_rating + room_type + is_location_exact, data = clean_data)
+model5 <- lm(log_price_4_nights ~ prop_type_simplified + number_of_reviews + review_scores_rating + room_type + is_location_exact, data = clean_data)
 
 get_regression_table(model5)
 
@@ -269,16 +270,16 @@ autoplot(model5)
 
 ## Model 6
 
-For all cities, there are 3 variables that relate to neighbourhoods: neighbourhood, neighbourhood_cleansed, and neighbourhood_group_cleansed. There are typically more than 20 neighbourhoods in each city, and it wouldn’t make sense to include them all in your model. Use your city knowledge, or ask someone with city knowledge, and see whether you can group neighbourhoods together so the majority of listings falls in fewer (5-6 max) geographical areas. You would thus need to create a new categorical variabale neighbourhood_simplified and determine whether location is a predictor of price_4_nights
+For all cities, there are 3 variables that relate to neighbourhoods: neighbourhood, neighbourhood_cleansed, and neighbourhood_group_cleansed. There are typically more than 20 neighbourhoods in each city, and it wouldn’t make sense to include them all in your model. Use your city knowledge, or ask someone with city knowledge, and see whether you can group neighbourhoods together so the majority of listings falls in fewer (5-6 max) geographical areas. You would thus need to create a new categorical variabale neighbourhood_simplified and determine whether location is a predictor of log_price_4_nights
 
 
 ## Model 7
 
-What is the effect of cancellation_policy on price_4_nights, after we control for other variables?
+What is the effect of cancellation_policy on log_price_4_nights, after we control for other variables?
 
 ```{r model7}
 
-model7 <- lm(price_4_nights ~ prop_type_simplified + number_of_reviews + review_scores_rating + room_type + cancellation_policy, data = clean_data)
+model7 <- lm(log_price_4_nights ~ prop_type_simplified + number_of_reviews + review_scores_rating + room_type + cancellation_policy, data = clean_data)
 
 get_regression_table(model7)
 
