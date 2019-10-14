@@ -1,12 +1,28 @@
 ---
-title: "Group Assignment"
+title: "Data Analytics Group Assignment"
 author: "Group 16"
-date: "09/10/2019"
-output: html_document
+date: "`r Sys.Date()`"
+output:
+  html_document:
+    theme: readable
+    highlight: zenburn
+    toc: yes
+    toc_float: yes
+    number_sections: true
+    code_folding: hide
 ---
 
-```{r huxtable-stuff, include=FALSE}
+```{r huxtable-stuff, message=FALSE, warning=FALSE, include=FALSE}
 options("huxtable.knit_print_df" = FALSE)
+
+# Install mising packages
+list.of.packages <- c("lubridate", "here", "moderndive", "tidyverse", "ggfortify", "infer", "mosaic", "huxtable", "kableExtra", "tidyquant",
+                      "readxl", "GGally", "broom", "scales", "knitr", "leaflet", "car", "corrplot", "ggthemes", "plotly", "DT")
+new.packages <- list.of.packages[!(list.of.packages %in% installed.packages()[,"Package"])]
+if (length(new.packages)) 
+  install.packages(new.packages)
+
+# Load required packages
 library(lubridate)
 library(here)
 library(moderndive)
@@ -17,46 +33,80 @@ library(mosaic)
 library(huxtable)
 library(kableExtra)
 library(tidyquant)
-library(readxl) #need to load readxl explicitly, as it is not a core tidyverse 
+library(readxl)
 library(GGally)
 library(broom)
 library(scales)
-#library(plotly) # Animation of graphs and tables
-# library(DT) 
+library(knitr)
+library(leaflet)
+library(car)
+library(corrplot)
+library(ggthemes)
+library(plotly)
+library(DT)
 ```
 
-# Explanatory Data Analysis (EDA)
+# Executive Summary
 
-```{r load_data}
+Using raw data downloaded from insideairbnb.com, we aim to find the best regression model of a 4-day trip in Barcelona for 2 people:
 
-raw_data <- read_csv(here::here('Data', 'listings.csv.gz'))
+1. Executive Summary: Overview of report and background information of the scope
+2. Data Wrangling: For further analysis, we replaced missing values, recategorized property types, and defined region based on average price of neighbourhood.  
+3. Data Visualization: We explored relationship between key variables through histogram, correlation matrix and an interactive map.  
+4. Model Building: To find the best fit model for explained variable “log_price_4_nights”, we conducted regression analysis using different explanatory variables. Our final model contains 13 explanatory variables, with adjusted R2 of 55.54%.  
+5. Model Significance and Diagnostics: We further checked significance, residuals and collinearity of the final model.  
+6. Prediction: Finally, we leveraged the best model to predict the total cost of 4-night stay at an Airbnb, which has a private room, 10 reviews, and an average rating of 90.  
+
+## Background Information
+
+A student will leave straight for Barcelona after Sundowners on Thursday, and will catch the first flight on Monday morning to head back to classes. To estimate the cost to stay at a Barcelona Airbnb for four nights, we will build several models and use the best model to predict the total cost to stay at this Airbnb for 4 nights.
+
+# Explanatory Data Analysis
+
+## Load Data
+
+We start by loading the raw data that we got from [Inside Airbnb website](http://insideairbnb.com/index.html). Insead of downloading the csv file and then loading it into our workplace, we use a direct web link to allow for others to automatically reproduce this piece of work without having to download the data themselves.
+
+```{r load_data, message=FALSE, warning=FALSE}
+
+# Used link rather than downloading data to allow for reproducability
+raw_data <- read_csv("http://data.insideairbnb.com/spain/catalonia/barcelona/2019-07-10/data/listings.csv.gz") 
 
 ```
 
+## Looking at raw data
 
-## Looking at raw values
+Before we begin analyzing our data, looking for relationships or producing any plots, we need to look at the available unprocessed data in order to understand what variables we are given and how they are strucuted. At this point, we are looking for any inconsistencies in our data like mising values(NAs), wrong formating or corrupt data points. Looking through our variables we should consider which are probaly going to be usable in later stages and which ones we should drop when we are cleaning our data in the step.
 
-```{r EDA}
+```{r EDA, echo=TRUE, message=FALSE, warning=FALSE}
 
-glimpse(raw_data)
-
-```
-
-## Looking at summary statistics
-
-```{r summary_stats}
-
-mosaic::favstats(price ~ city, data = raw_data)
-
-skimr::skim(raw_data)
+kable(glimpse(raw_data)) %>%
+  kable_styling() %>%
+  scroll_box(width = "500px", height = "200px")
 
 ```
 
 ## Cleaning Data
 
-```{r clean_data}
+At this stage, we need to prepare our data set in order to be able to create representative plots and models. We choose to perform all of our data wrangling together to avoid duplication and allow for easier understanding:
 
-clean_data <- raw_data %>% 
+* We filtered the minimum_nights to be less than or equal to four as our booking is only for four days. This will also filter out any properties that are not meant for holidays, these usually have a minimum_nights of 30.
+* We select only the relevant variables to remain in our data set both for simplicity/tidyness and increased speed.
+* We reformate variables from strings to numerics using parse_numeric(). This is necessary because prices were given with a dollar sign and in character format.
+* Using case_when(), we replace all mising values in cleaning_fee to zeros (assumption) and create new simplified variables for property_type and neighbourhood_group_cleansed. This will come in hadny when we are creating our models because it is going to limit the number of dummy variables.
+* Lastly, we calculate price_4_nights for each listing by multiplying the price per night by four, adding the cleaning_fee and any extra_people charges. We then calculate the log of price_4_nights to get a normally distributed variable.
+
+```{r clean_data, message=FALSE, warning=FALSE}
+
+clean_data <- raw_data %>%
+  # Filter for leisure purporses only
+  filter(minimum_nights <= 4) %>% 
+  # select only useful variables
+  select(host_is_superhost, host_listings_count, host_identity_verified, neighbourhood_group_cleansed, city, zipcode,
+         property_type, room_type, accommodates, bathrooms, bedrooms, beds, square_feet, price, weekly_price, monthly_price, 
+         security_deposit, cleaning_fee, guests_included, extra_people, minimum_nights, maximum_nights, number_of_reviews,
+         review_scores_rating, instant_bookable, cancellation_policy, is_location_exact, host_total_listings_count, longitude, 
+         latitude, listing_url) %>% 
   # 1.1 Data Wrangling
   mutate_at(c("price", "weekly_price", "monthly_price", "cleaning_fee", "extra_people", "security_deposit"), parse_number) %>% 
   # 1.2 Missing values
@@ -65,11 +115,15 @@ clean_data <- raw_data %>%
                      TRUE ~ cleaning_fee),
          # Property type simplified column added
          prop_type_simplified = 
-           case_when(property_type %in% c("Apartment","Serviced apartment", "Loft","House") ~ property_type, 
-                     TRUE ~ "Other"))
-
-# Summary
-glimpse(clean_data)
+           case_when(property_type %in% c("Apartment","Serviced apartment","Loft","House") ~ property_type,
+                     TRUE ~ "Other"),
+         region_by_price =
+           case_when(neighbourhood_group_cleansed %in% c("Eixample", "Gràcia", "Sant Martí", "Sarrià-Sant Gervasi") ~ "Center",
+                     neighbourhood_group_cleansed %in% c("Sant Andreu", "Nou Barris", "Horta-Guinardó") ~ "North",
+                     neighbourhood_group_cleansed %in% c("Sants-Montjuïc", "Ciutat Vella", "Les Corts") ~ "South"),
+         # Calculate price for 4 nights for two people
+         price_4_nights = 4*price + cleaning_fee + 4*ifelse(guests_included < 2, (2 - guests_included) * extra_people, 0),
+         log_price_4_nights = log(price_4_nights))
 
 # Frequency analysis of property types
 
@@ -79,39 +133,108 @@ clean_data_sorted <- clean_data %>%
   arrange(desc(Count)) %>%
   head()
 
-# clean_data %>%
-#   count(property_type, prop_type_simplified) %>%
-#   arrange(desc(n))  
-
+clean_data %>%
+  count(property_type, prop_type_simplified) %>%
+  arrange(desc(n))
 
 ```
 
+# Exploring relationships
 
-**Answer at minimum**: 
+## Overview
+
+```{r}
+
+glimpse(clean_data)
+
+mosaic::favstats(price ~ square_feet, data = clean_data)
+
+skimr::skim(clean_data)
+
+```
+
+**Answer at minimum**:
+
 *1. How many variables/columns? How many rows/observations?* 
 
-There are 106 variables and 19833 observations
+* There are `r ncol(raw_data)` variables and `r nrow(raw_data)` observations.
 
 *2. Which variables are numbers?*
 
-(skim table - numeric)
+`r select_if(raw_data, is.numeric) %>% colnames()`
 
 3. Which are categorical or factor variables (numeric or character variables with variables that have a fixed and known set of possible values?
 
-?
+  These are the following caterorical variables: `r select_if(raw_data, is.numeric) %>% colnames()`
+
+  These are the following factor variables: `r select_if(raw_data, is.factor) %>% colnames()`
 
 4. What are the correlations between variables? 
 
+The matrix below clearly shows correlation between variables.
+```{r}
+#install("corrplot")
+library('corrplot')
+
+cormatrix <- clean_data %>% 
+  drop_na() %>% 
+  select(select_if(clean_data, is.numeric) %>% colnames())
+
+cor <- cor(cormatrix)
+
+corrplot(cor,method = 'circle')
+cor
+```
+Focusing on the two explained variables “price_4_nights” and “log_price_4_nights”, we can find explanatory variables that display high correlation with them are accommodates, bathrooms, bedrooms, beds and guests_included.
 
 5. Does each scatterplot support a linear relationship between variables?
 
+No
+
+```{r message=FALSE, warning=FALSE}
+ggplot(clean_data,aes(y=price,x=latitude))+geom_point()+labs(title="Relationship of Price and Latitude",y="Price",x="Latitude")+theme_bw()+scale_y_continuous(labels = scales::dollar)
+
+ggplot(clean_data,aes(y=price,x=longitude))+geom_point()+labs(title="Relationship of Price and Longitude",y="Price",x="Longitude")+theme_bw()+scale_y_continuous(labels = scales::dollar)
+
+ggplot(clean_data,aes(y=price,x=host_listings_count))+geom_point()+labs(title="Relationship of Price and host listings count",y="Price",x="host listing count")+theme_bw()+scale_y_continuous(labels = scales::dollar)
+
+ggplot(clean_data,aes(y=price,x=accommodates))+geom_point()+labs(title="Relationship of Price and accommodates",y="Price",x="Accommodates")+theme_bw()+scale_y_continuous(labels = scales::dollar)
+
+ggplot(clean_data,aes(y=price,x=bathrooms))+geom_point()+labs(title="Relationship of Price and bathrooms",y="Price",x="Bathrooms")+theme_bw()+scale_y_continuous(labels = scales::dollar)
+
+ggplot(clean_data,aes(y=price,x=bedrooms))+geom_point()+labs(title="Relationship of Price and bedrooms",y="Price",x="Bedrooms")+theme_bw()+scale_y_continuous(labels = scales::dollar)
+
+ggplot(clean_data,aes(y=price,x=beds))+geom_point()+labs(title="Relationship of Price and latitude",y="Price",x="Beds")+theme_bw()+scale_y_continuous(labels = scales::dollar)
+
+ggplot(clean_data,aes(y=price,x=square_feet))+geom_point()+labs(title="Relationship of Price and Square feet",y="Price",x="Square feet")+theme_bw()+scale_y_continuous(labels = scales::dollar)
+
+ggplot(clean_data,aes(y=price,x=security_deposit))+geom_point()+labs(title="Relationship of Price and Security deposit",y="Price",x="Security Deposit")+theme_bw()+scale_y_continuous(labels = scales::dollar)
+
+ggplot(clean_data,aes(y=price,x=cleaning_fee))+geom_point()+labs(title="Relationship of Price and Cleaning Fee",y="Price",x="Cleaning Fee")+theme_bw()+scale_y_continuous(labels = scales::dollar)
+
+ggplot(clean_data,aes(y=price,x=guests_included))+geom_point()+labs(title="Relationship of Price and Guests included",y="Price",x="Guests included")+theme_bw()+scale_y_continuous(labels = scales::dollar)
+
+ggplot(clean_data,aes(y=price,x=extra_people))+geom_point()+labs(title="Relationship of Price and Extra people",y="Price",x="Extra people")+theme_bw()+scale_y_continuous(labels = scales::dollar)
+
+ggplot(clean_data,aes(y=price,x=minimum_nights))+geom_point()+labs(title="Relationship of Price and Minimum Nights",y="Price",x="Minimum Nights")+theme_bw()+scale_y_continuous(labels = scales::dollar)
+
+ggplot(clean_data,aes(y=price,x=maximum_nights))+geom_point()+labs(title="Relationship of Price and Maximum Nights",y="Price",x="Maximum Nights")+theme_bw()+scale_y_continuous(labels = scales::dollar)
+
+ggplot(clean_data,aes(y=price,x=number_of_reviews))+geom_point()+labs(title="Relationship of Price and Number reviews",y="Price",x="Number reviews")+theme_bw()+scale_y_continuous(labels = scales::dollar)
+
+ggplot(clean_data,aes(y=price,x=review_scores_rating))+geom_point()+labs(title="Relationship of Price and Review scores rating",y="Price",x="Review scores rating")+theme_bw()+scale_y_continuous(labels = scales::dollar)
+
+```
+
 6. Do any of the correlations appear to be conditional on the value of a categorical variable?
+
+Yes, there are conditional correlations subject to the type of property they are renting.
 
 ##  Visualisations
 
 ```{r visualizations, echo=TRUE, message=FALSE, warning=FALSE}
 
-raw_data %>%
+clean_data %>%
   #mutate(host_is_superhost = case_when(
     #host_is_superhost %in% TRUE ~ superhost, FALSE ~ non_superhost, NA)) %>%
   select(host_is_superhost, price, review_scores_rating) %>%
@@ -122,12 +245,16 @@ raw_data %>%
 ```
 
 
-# Mapping
+# Maps {.tabset}
 
-```{r MAP, echo=TRUE, message=FALSE, warning=FALSE}
+## Base Map
 
-library(leaflet)
+You can use the tabs above to view different iterations of the map that explore the geographical distributions of some of our variables.
 
+The base map shows the location of every listing in Barcelona. Hovering over each property displays the type of the property. Clicking each property point displays the url of the listing.
+
+```{r Base_map, echo=TRUE, message=FALSE, warning=FALSE}
+# Base map
 leaflet(data = filter(raw_data, minimum_nights <= 4)) %>% 
   addProviderTiles("OpenStreetMap.Mapnik") %>% 
   addCircleMarkers(lng = ~longitude, 
@@ -136,8 +263,308 @@ leaflet(data = filter(raw_data, minimum_nights <= 4)) %>%
                    fillColor = "blue", 
                    fillOpacity = 0.4, 
                    popup = ~listing_url,
-                   label = ~property_type)
+                   label = ~property_type,
+                   stroke = FALSE)
 
 ```
 
-# Regressions
+## Region
+
+The map shows how we decided to split our neighbourhoods into three categories:
+
+* Red = North
+* Blue = Center
+* Green = South
+
+Hovering over each listing shows its original neighbourhood.
+
+```{r region_map, echo=TRUE, message=FALSE, warning=FALSE}
+
+pal <- colorFactor(c("navy", "red", "green"), domain = c("North", "Center", "South"))
+
+leaflet(data = filter(clean_data, minimum_nights <= 4)) %>% 
+  addProviderTiles("OpenStreetMap.Mapnik") %>% 
+  addCircleMarkers(lng = ~longitude, 
+                   lat = ~latitude, 
+                   radius = 2, 
+                   fillColor = ~pal(region_by_price), 
+                   fillOpacity = 0.8, 
+                   label = ~neighbourhood_group_cleansed,
+                   stroke = FALSE)
+
+```
+
+## Property type
+
+The map shows the room type for each listing:
+
+* Blue = Private room
+* Red = Entire home / Apartment
+* Green = Shared Room
+
+```{r property_type_map, echo=TRUE, message=FALSE, warning=FALSE}
+
+pal <- colorFactor(c("red", "navy", "green"), domain = c("Entire home/apt", "Private room", "Shared room"))
+
+leaflet(data = filter(clean_data, minimum_nights <= 4)) %>% 
+  addProviderTiles("OpenStreetMap.Mapnik") %>% 
+  addCircleMarkers(lng = ~longitude, 
+                   lat = ~latitude, 
+                   radius = 2, 
+                   fillColor = ~pal(room_type), 
+                   fillOpacity = 0.8, 
+                   label = ~room_type,
+                   stroke = FALSE)
+```
+
+## Prices
+
+The map shows the geographical distribtion of prices per night. Listings with higher prices are represented with darker hues of blue.
+
+```{r prices_map, echo=TRUE, message=FALSE, warning=FALSE}
+
+pal <- colorQuantile("Blues", clean_data$price, n = 5)
+
+leaflet(data = filter(clean_data, minimum_nights <= 4)) %>% 
+  addProviderTiles("OpenStreetMap.Mapnik") %>% 
+  addCircleMarkers(lng = ~longitude, 
+                   lat = ~latitude, 
+                   radius = 2, 
+                   fillColor = ~pal(price), 
+                   fillOpacity = 0.8, 
+                   label = ~price,
+                   stroke = FALSE)
+
+```
+
+# Regression Analysis
+
+We begin by comparing the distribution of price_4_nights and log_price_4_nights.
+
+```{r Visual Analysis}
+
+clean_data %>% 
+  ggplot(aes(x = price_4_nights)) +
+  geom_density() +
+  theme_clean() +
+  labs(title = "Density distribution of price_4_nights",
+       x = "",
+       y = "Density")
+  
+clean_data %>% 
+  ggplot(aes(x = log(price_4_nights))) +
+  geom_density() +
+  theme_clean() +
+  labs(title = "Density distribution of log_price_4_nights",
+     x = "",
+     y = "Density")
+
+```
+
+Because the later follows a more normal distribution, we choose to use that as our dependent variable.
+
+## Model variants {.tabset}
+
+In this section, we show the development process of our model, starting with a few variables and finishing with our final model.
+
+### Model 1
+
+* review_scores: the estimate for this variable is -0.006	, denoting a very slight negative correlation with our dependent variable "log(price)". Moreover, looking at both the t-statistic (-7.781) and the p-value (0.000), we can conclude that the estimate is statistically significant at a 95% level.
+
+* prop_type_simplified: being a dummy variable the interpretation for this variables is different, choosing "Apartment" as our base value we are now studying the incremental effect, on avergage, that different types of property have on the dependent variable. Simply from looking at the p-values, we can infer that Other, 0.080, is not significant at a 95% level therefore not providing much explenatory power to our model. When looking at the other categories, their interpretation is different as they all show p-values lower than 0.05.
+
+* number_of_reviews: is insignificant with a p-value of 0.68, thus we choose to omit it from our next model.
+
+```{r model1}
+
+model1 <- lm(log_price_4_nights ~ prop_type_simplified + number_of_reviews + review_scores_rating, data = clean_data)
+
+get_regression_table(model1)
+
+get_regression_summaries(model1)
+
+autoplot(model1)
+
+vif(model1)
+
+```
+
+### Model 2
+
+* room_type: by simply adding this variable to our model we can see a significant improvement to the adjusted R2. The value improves from 0.041	to 0.493. Moreover, the estimate itself is significant in all its different categories and denotes the cheaper prices for houses that are shared, either with private or shared room.
+
+* prop_type_simplifiedHouse: in this variant of the model it looks to be statistically insignificant different from our base case of prop_type_simplifiedApartment.
+
+```{r model2}
+
+model2 <- lm(log_price_4_nights ~ prop_type_simplified + review_scores_rating + room_type, data = clean_data)
+
+get_regression_table(model2)
+
+get_regression_summaries(model2)
+
+autoplot(model2)
+
+vif(model2)
+
+```
+
+### Model 3
+
+* While all the new dummy variables appear significant at the 95% level when looking at their p-values, it seems odd that while bedrooms positively affect the dependent variable, it is the opposite for the number of beds. This phenomenon is likely to be explained by the multi-collinearity between the two variables. Therefore, we choose to drop the least significant variable (bedrooms) from our next model.
+
+```{r model3}
+
+model3 <- lm(log_price_4_nights ~ prop_type_simplified + review_scores_rating + room_type + bathrooms + bedrooms + beds + accommodates, data = clean_data)
+
+get_regression_table(model3)
+
+get_regression_summaries(model3)
+
+autoplot(model3)
+
+vif(model3)
+
+```
+
+### Model 4
+
+* From our regression it does appear that superhosts require a slight price premium, the estimate takes a value of 0.073 significant at a 95% level (p-value = .000). It terms of the goodnessof fit of our model, the Adjusted R2 is now 0.565, exactly the same as before implying that the premium commanded by "superhosts" doesn't really add explenatory power to our model.
+
+```{r model4}
+
+model4 <- lm(log_price_4_nights ~ prop_type_simplified + review_scores_rating + room_type + bathrooms + beds + accommodates + host_is_superhost, data = clean_data)
+
+get_regression_table(model4)
+
+get_regression_summaries(model4)
+
+autoplot(model4)
+
+vif(model4)
+
+```
+
+### Model 5
+
+* is_location_exact is not significant at a 95% level (p-value = 0.455) so we remove it from the next model.
+
+```{r model5}
+
+model5 <- lm(log_price_4_nights ~ prop_type_simplified + review_scores_rating + room_type + bathrooms + beds + accommodates + host_is_superhost + is_location_exact, data = clean_data)
+
+get_regression_table(model5)
+
+get_regression_summaries(model5)
+
+autoplot(model5)
+
+vif(model5)
+
+```
+
+
+### Model 6
+
+To better understand our findings we grouped our 10 initial locations in to 3 bigger areas: North, South and Center setting the latter as our base-line. From this new model we can see that the Central region is clearly the most expensive and North is the cheapest on average. P-values for all are below 0.05 so we can accept the estimates as significant at 95%. By adding this division into bigger areas we can also notice an improvement to our adjusted R2 from 0.565 to 0.57.
+
+```{r model6}
+
+model6 <- lm(log_price_4_nights ~ prop_type_simplified + review_scores_rating + room_type + bathrooms + beds + accommodates + host_is_superhost + region_by_price, data = clean_data)
+
+get_regression_table(model6)
+
+get_regression_summaries(model6)
+
+autoplot(model6)
+
+vif(model6)
+
+```
+
+### Model 7
+
+We have now added the cancellation_policy dummy variable that refers to how many days before arrival you can still cancel the booking and get a refund. We can infer that this variable is not significant at a 95% level for the most part. Only "super strict policy" and "14 with grace" show acceptable p-values, but we considered this not enough to keep the variable. Morever it adds only 0.002 to the adjusted R2, a negligible effect.
+
+```{r model7}
+
+model7 <- lm(log_price_4_nights ~ prop_type_simplified + review_scores_rating + room_type + bathrooms + beds + accommodates + host_is_superhost + region_by_price + cancellation_policy, data = clean_data)
+
+get_regression_table(model7)
+
+get_regression_summaries(model7)
+
+autoplot(model7)
+
+vif(model7)
+
+```
+
+## Final Model
+
+```{r model_final}
+
+model_final <- lm(log_price_4_nights ~ prop_type_simplified + review_scores_rating + room_type + bathrooms + beds + accommodates + host_is_superhost + region_by_price + host_total_listings_count + instant_bookable + guests_included + security_deposit + number_of_reviews, data = clean_data)
+
+get_regression_table(model_final)
+
+get_regression_summaries(model_final)
+
+autoplot(model_final)
+
+vif(model_final)
+
+```
+
+# Conclusion
+
+```{r}
+
+huxtable::huxreg(
+  "Model 1" = model1, 
+  "Model 2" = model2, 
+  "Model 3" = model3, 
+  "Model 4" = model4,
+  "Model 5" = model5,
+  "Model 6" = model6,
+  "Model 7" = model7,
+  "Final Model" = model_final,
+  number_format = "%.2f",
+  bold_signif = 0.5,
+  statistics = c("Residuals" = "sigma", 'Adjusted R squared' = 'adj.r.squared', 'F statistic' = 'statistic',
+  'P value' = 'p.value')) %>% 
+  set_caption("Airbnb Barcelona models")
+
+```
+
+```{r}
+
+
+```
+
+## Assumptions
+
+* number_of_reviews 10
+* 4 nights
+* Private room
+* 2 guests 
+* Average rating > 90%
+* Property type Apartment
+* Bathrooms 1
+* Beds 2
+* Accomodates 2
+* host is superhost
+* region center
+* host_total_listing_count avg of 20
+* insta bookable
+* guests_included 2
+* security_deposit 245
+
+## Rationale
+
+## Significance and diagnostics 
+
+host_is_superhost, host_listings_count, host_identity_verified, neighbourhood_group_cleansed, city, zipcode,
+         property_type, room_type, accommodates, bathrooms, bedrooms, beds, square_feet, price, weekly_price, monthly_price, 
+         security_deposit, cleaning_fee, guests_included, extra_people, minimum_nights, maximum_nights, number_of_reviews,
+         review_scores_rating, instant_bookable, cancellation_policy, is_location_exact, host_total_listings_count

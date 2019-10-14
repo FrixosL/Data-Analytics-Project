@@ -33,7 +33,7 @@ library(mosaic)
 library(huxtable)
 library(kableExtra)
 library(tidyquant)
-library(readxl) #need to load readxl explicitly, as it is not a core tidyverse 
+library(readxl)
 library(GGally)
 library(broom)
 library(scales)
@@ -42,29 +42,30 @@ library(leaflet)
 library(car)
 library(corrplot)
 library(ggthemes)
-library(plotly) # Animation of graphs and tables
+library(plotly)
 library(DT)
 ```
 
 # Executive Summary
 
-Using raw data downloaded from insideairbnb.com, we aim to find the best regression model of a 4-day trip in Barcelona for 2 people.  
-I. Data Wrangling: For further analysis, we replaced missing values, recategorized property types, and defined region based on average price of neighbourhood.  
-II. Data Visualization: We explored relationship between key variables through histogram, correlation matrix and an interactive map.  
-III. Model Building: To find the best fit model for explained variable “log_price_4_nights”, we conducted regression analysis using different explanatory variables. Our final model contains 13 explanatory variables, with adjusted R2 of 55.54%.  
-IV. Model Significance and Diagnostics: We further checked significance, residuals and collinearity of the final model.  
-V. Prediction: Finally, we leveraged the best model to predict the total cost of 4-night stay at an Airbnb, which has a private room, 10 reviews, and an average rating of 90.  
+Using raw data downloaded from insideairbnb.com, we aim to find the best regression model of a 4-day trip in Barcelona for 2 people:
 
-
-# Explanatory Data Analysis
+1. Executive Summary: Overview of report and background information of the scope
+2. Data Wrangling: For further analysis, we replaced missing values, recategorized property types, and defined region based on average price of neighbourhood.  
+3. Data Visualization: We explored relationship between key variables through histogram, correlation matrix and an interactive map.  
+4. Model Building: To find the best fit model for explained variable “log_price_4_nights”, we conducted regression analysis using different explanatory variables. Our final model contains 13 explanatory variables, with adjusted R2 of 55.54%.  
+5. Model Significance and Diagnostics: We further checked significance, residuals and collinearity of the final model.  
+6. Prediction: Finally, we leveraged the best model to predict the total cost of 4-night stay at an Airbnb, which has a private room, 10 reviews, and an average rating of 90.  
 
 ## Background Information
 
-A student will leave straight for Barcelona after Sundowners on Thursday, and will catch the first flight on Monday morning to head back to classes. To estimate the cost to stay at a Barcelona Airbnb for four nights, we will build several models and use the best model to predict the total cost to stay at this Airbnb for 4 nights.  
+A student will leave straight for Barcelona after Sundowners on Thursday, and will catch the first flight on Monday morning to head back to classes. To estimate the cost to stay at a Barcelona Airbnb for four nights, we will build several models and use the best model to predict the total cost to stay at this Airbnb for 4 nights.
 
-To solve this problem, we imported the relevant Airbnb data in Barcelona and conducted Exploratory Data Analysis (EDA) first. 
+# Explanatory Data Analysis
 
 ## Load Data
+
+We start by loading the raw data that we got from [Inside Airbnb website](http://insideairbnb.com/index.html). Insead of downloading the csv file and then loading it into our workplace, we use a direct web link to allow for others to automatically reproduce this piece of work without having to download the data themselves.
 
 ```{r load_data, message=FALSE, warning=FALSE}
 
@@ -73,26 +74,25 @@ raw_data <- read_csv("http://data.insideairbnb.com/spain/catalonia/barcelona/201
 
 ```
 
-
 ## Looking at raw data
+
+Before we begin analyzing our data, looking for relationships or producing any plots, we need to look at the available unprocessed data in order to understand what variables we are given and how they are strucuted. At this point, we are looking for any inconsistencies in our data like mising values(NAs), wrong formating or corrupt data points. Looking through our variables we should consider which are probaly going to be usable in later stages and which ones we should drop when we are cleaning our data in the step.
 
 ```{r EDA, echo=TRUE, message=FALSE, warning=FALSE}
 
 glimpse(raw_data)
 
-skimr::skim(raw_data)
-
 ```
 
 ## Cleaning Data
 
-In order to get clean data for further analysis, we processed it in following steps:  
-1) Filter data used for travel purposes only, using ‘minimum_nights <= 4’
-2) Select explanatory variables for price.  
-3) Replace missing value of ‘cleaning_fee’ with 0.  
-4) Simplify ‘property_type’ variable, as majority of the observations in the data are one of the top four or five property types.  
-5) Group neighbourhood to 3 regions based on geography and average prices in each neighbourhood.  
-6) Calculate explained variable: price for 4 nights for two people and its logarithm.
+At this stage, we need to prepare our data set in order to be able to create representative plots and models. We choose to perform all of our data wrangling together to avoid duplication and allow for easier understanding:
+
+* We filtered the minimum_nights to be less than or equal to four as our booking is only for four days. This will also filter out any properties that are not meant for holidays, these usually have a minimum_nights of 30.
+* We select only the relevant variables to remain in our data set both for simplicity/tidyness and increased speed.
+* We reformate variables from strings to numerics using parse_numeric(). This is necessary because prices were given with a dollar sign and in character format.
+* Using case_when(), we replace all mising values in cleaning_fee to zeros (assumption) and create new simplified variables for property_type and neighbourhood_group_cleansed. This will come in hadny when we are creating our models because it is going to limit the number of dummy variables.
+* Lastly, we calculate price_4_nights for each listing by multiplying the price per night by four, adding the cleaning_fee and any extra_people charges. We then calculate the log of price_4_nights to get a normally distributed variable.
 
 ```{r clean_data, message=FALSE, warning=FALSE}
 
@@ -137,7 +137,9 @@ clean_data %>%
 
 ```
 
-## Exploring relationships
+# Exploring relationships
+
+## Overview
 
 ```{r}
 
@@ -241,10 +243,16 @@ clean_data %>%
 ```
 
 
-# Mapping
+# Maps {.tabset}
 
-```{r MAP, echo=TRUE, message=FALSE, warning=FALSE}
+## Base Map
 
+You can use the tabs above to view different iterations of the map that explore the geographical distributions of some of our variables.
+
+The base map shows the location of every listing in Barcelona. Hovering over each property displays the type of the property. Clicking each property point displays the url of the listing.
+
+```{r Base_map, echo=TRUE, message=FALSE, warning=FALSE}
+# Base map
 leaflet(data = filter(raw_data, minimum_nights <= 4)) %>% 
   addProviderTiles("OpenStreetMap.Mapnik") %>% 
   addCircleMarkers(lng = ~longitude, 
@@ -253,29 +261,117 @@ leaflet(data = filter(raw_data, minimum_nights <= 4)) %>%
                    fillColor = "blue", 
                    fillOpacity = 0.4, 
                    popup = ~listing_url,
-                   label = ~property_type)
+                   label = ~property_type,
+                   stroke = FALSE)
+
+```
+
+## Region
+
+The map shows how we decided to split our neighbourhoods into three categories:
+
+* Red = North
+* Blue = Center
+* Green = South
+
+Hovering over each listing shows its original neighbourhood.
+
+```{r region_map, echo=TRUE, message=FALSE, warning=FALSE}
+
+pal <- colorFactor(c("navy", "red", "green"), domain = c("North", "Center", "South"))
+
+leaflet(data = filter(clean_data, minimum_nights <= 4)) %>% 
+  addProviderTiles("OpenStreetMap.Mapnik") %>% 
+  addCircleMarkers(lng = ~longitude, 
+                   lat = ~latitude, 
+                   radius = 2, 
+                   fillColor = ~pal(region_by_price), 
+                   fillOpacity = 0.8, 
+                   label = ~neighbourhood_group_cleansed,
+                   stroke = FALSE)
+
+```
+
+## Property type
+
+The map shows the room type for each listing:
+
+* Blue = Private room
+* Red = Entire home / Apartment
+* Green = Shared Room
+
+```{r property_type_map, echo=TRUE, message=FALSE, warning=FALSE}
+
+pal <- colorFactor(c("red", "navy", "green"), domain = c("Entire home/apt", "Private room", "Shared room"))
+
+leaflet(data = filter(clean_data, minimum_nights <= 4)) %>% 
+  addProviderTiles("OpenStreetMap.Mapnik") %>% 
+  addCircleMarkers(lng = ~longitude, 
+                   lat = ~latitude, 
+                   radius = 2, 
+                   fillColor = ~pal(room_type), 
+                   fillOpacity = 0.8, 
+                   label = ~room_type,
+                   stroke = FALSE)
+```
+
+## Prices
+
+The map shows the geographical distribtion of prices per night. Listings with higher prices are represented with darker hues of blue.
+
+```{r prices_map, echo=TRUE, message=FALSE, warning=FALSE}
+
+pal <- colorQuantile("Blues", clean_data$price, n = 5)
+
+leaflet(data = filter(clean_data, minimum_nights <= 4)) %>% 
+  addProviderTiles("OpenStreetMap.Mapnik") %>% 
+  addCircleMarkers(lng = ~longitude, 
+                   lat = ~latitude, 
+                   radius = 2, 
+                   fillColor = ~pal(price), 
+                   fillOpacity = 0.8, 
+                   label = ~price,
+                   stroke = FALSE)
 
 ```
 
 # Regression Analysis
 
-## Visual Inspection
+We begin by comparing the distribution of price_4_nights and log_price_4_nights.
 
 ```{r Visual Analysis}
 
 clean_data %>% 
   ggplot(aes(x = price_4_nights)) +
-  geom_density() 
+  geom_density() +
+  theme_clean() +
+  labs(title = "Density distribution of price_4_nights",
+       x = "",
+       y = "Density")
   
 clean_data %>% 
   ggplot(aes(x = log(price_4_nights))) +
-  geom_density()
+  geom_density() +
+  theme_clean() +
+  labs(title = "Density distribution of log_price_4_nights",
+     x = "",
+     y = "Density")
 
 ```
 
-*Which variable should you use for the regression model? Why?*
+Because the later follows a more normal distribution, we choose to use that as our dependent variable.
 
-## Model 1
+## Model variants {.tabset}
+
+In this section, we show the development process of our model, starting with a few variables and finishing with our final model.
+
+### Model 1
+
+* review_scores: the estimate for this variable is -0.006	, denoting a very slight negative correlation with our dependent variable "log(price)". Moreover, looking at both the t-statistic (-7.781) and the p-value (0.000), we can conclude that the estimate is statistically significant at a 95% level.
+
+* prop_type_simplified: being a dummy variable the interpretation for this variables is different, choosing "Apartment" as our base value we are now studying the incremental effect, on avergage, that different types of property have on the dependent variable. Simply from looking at the p-values, we can infer that Other, 0.080, is not significant at a 95% level therefore not providing much explenatory power to our model. When looking at the other categories, their interpretation is different as they all show p-values lower than 0.05.
+
+* number_of_reviews: is insignificant with a p-value of 0.68, thus we choose to omit it from our next model.
 
 ```{r model1}
 
@@ -291,13 +387,11 @@ vif(model1)
 
 ```
 
-* review_scores: the estimate for this variable is -0.006	, denoting a very slight negative correlation with our dependent variable "log(price)". Moreover, looking at both the t-statistic (-7.781) and the p-value (0.000), we can conclude that the estimate is statistically significant at a 95% level.
+### Model 2
 
-* prop_type_simplified: being a dummy variable the interpretation for this variables is different, choosing "Apartment" as our base value we are now studying the incremental effect, on avergage, that different types of property have on the dependent variable. Simply from looking at the p-values, we can infer that Other, 0.080, is not significant at a 95% level therefore not providing much explenatory power to our model. When looking at the other categories, their interpretation is different as they all show p-values lower than 0.05.
+* room_type: by simply adding this variable to our model we can see a significant improvement to the adjusted R2. The value improves from 0.041	to 0.493. Moreover, the estimate itself is significant in all its different categories and denotes the cheaper prices for houses that are shared, either with private or shared room.
 
-* number_of_reviews is insignificant so remove it
-
-## Model 2
+* prop_type_simplifiedHouse: in this variant of the model it looks to be statistically insignificant different from our base case of prop_type_simplifiedApartment.
 
 ```{r model2}
 
@@ -313,11 +407,9 @@ vif(model2)
 
 ```
 
-*room_type: by simply adding this variable to our model we can see a significant improvement to the adjusted R2. The value improves from 0.041	to 0.493. Moreover, the estimate itself is significant in all its different categories and denotes the cheaper prices for houses that are shared, either with private or shared room.
+### Model 3
 
-## Model 3
-
-* While all the new dummy variables appear significant at the 95% level when looking at their p-values, it seems odd that while bedrooms positively affect the dependent variable, it is the opposite for the number of beds. This phenomenon is likely to be explained by the multi-collinearity between the two variables.
+* While all the new dummy variables appear significant at the 95% level when looking at their p-values, it seems odd that while bedrooms positively affect the dependent variable, it is the opposite for the number of beds. This phenomenon is likely to be explained by the multi-collinearity between the two variables. Therefore, we choose to drop the least significant variable (bedrooms) from our next model.
 
 ```{r model3}
 
@@ -333,8 +425,7 @@ vif(model3)
 
 ```
 
-
-## Model 4
+### Model 4
 
 * From our regression it does appear that superhosts require a slight price premium, the estimate takes a value of 0.073 significant at a 95% level (p-value = .000). It terms of the goodnessof fit of our model, the Adjusted R2 is now 0.565, exactly the same as before implying that the premium commanded by "superhosts" doesn't really add explenatory power to our model.
 
@@ -352,10 +443,9 @@ vif(model4)
 
 ```
 
+### Model 5
 
-## Model 5
-
-* is_location_exact is not significant at a 95% level (p-value = 0.455) so we should remove it.
+* is_location_exact is not significant at a 95% level (p-value = 0.455) so we remove it from the next model.
 
 ```{r model5}
 
@@ -372,7 +462,9 @@ vif(model5)
 ```
 
 
-## Model 6
+### Model 6
+
+To better understand our findings we grouped our 10 initial locations in to 3 bigger areas: North, South and Center setting the latter as our base-line. From this new model we can see that the Central region is clearly the most expensive and North is the cheapest on average. P-values for all are below 0.05 so we can accept the estimates as significant at 95%. By adding this division into bigger areas we can also notice an improvement to our adjusted R2 from 0.565 to 0.57.
 
 ```{r model6}
 
@@ -388,13 +480,9 @@ vif(model6)
 
 ```
 
-To better understand our findings we grouped our 10 initial locations in to 3 bigger areas: North, South and Center setting the latter as our base-line. From this new model we can see that the Central region is clearly the most expensive and North is the cheapest on average. P-values for all are below 0.05 so we can accept the estimates as significant at 95%. By adding this division into bigger areas we can also notice an improvement to our adjusted R2 from 0.565 to 0.57
+### Model 7
 
-## Model 7
-
-What is the effect of cancellation_policy on log_price_4_nights, after we control for other variables?
-
-*cancellation_policy not sign so remove, except 14 and strict 30*
+We have now added the cancellation_policy dummy variable that refers to how many days before arrival you can still cancel the booking and get a refund. We can infer that this variable is not significant at a 95% level for the most part. Only "super strict policy" and "14 with grace" show acceptable p-values, but we considered this not enough to keep the variable. Morever it adds only 0.002 to the adjusted R2, a negligible effect.
 
 ```{r model7}
 
@@ -409,8 +497,6 @@ autoplot(model7)
 vif(model7)
 
 ```
-
-We have now added the cancellation_policy dummy variable that refers to how many days before arrival you can still cancel the booking and get a refund. We can infer that this variable is not significant at a 95% level for the most part. Only "super strict policy" and "14 with grace" show acceptable p-values, but we considered this not enough to keep the variable. Morever it adds only 0.002 to the adjusted R2, a negligible effect.
 
 ## Final Model
 
