@@ -15,9 +15,14 @@ output:
 ```{r huxtable-stuff, message=FALSE, warning=FALSE, include=FALSE}
 options("huxtable.knit_print_df" = FALSE)
 
-# If you don't have the corrplot package installed delete the comment from line below and run it
-# install.packages("corrplot")
+# Install mising packages
+list.of.packages <- c("lubridate", "here", "moderndive", "tidyverse", "ggfortify", "infer", "mosaic", "huxtable", "kableExtra", "tidyquant",
+                      "readxl", "GGally", "broom", "scales", "knitr", "leaflet", "car", "corrplot", "ggthemes", "plotly", "DT")
+new.packages <- list.of.packages[!(list.of.packages %in% installed.packages()[,"Package"])]
+if (length(new.packages)) 
+  install.packages(new.packages)
 
+# Load required packages
 library(lubridate)
 library(here)
 library(moderndive)
@@ -32,7 +37,6 @@ library(readxl) #need to load readxl explicitly, as it is not a core tidyverse
 library(GGally)
 library(broom)
 library(scales)
-library(kableExtra)
 library(knitr)
 library(leaflet)
 library(car)
@@ -161,7 +165,7 @@ cor
 
 No
 
-```{r}
+```{r message=FALSE, warning=FALSE}
 ggplot(clean_data,aes(y=price,x=latitude))+geom_point()+labs(title="Relationship of Price and Latitude",y="Price",x="Latitude")+theme_bw()+scale_y_continuous(labels = scales::dollar)
 
 ggplot(clean_data,aes(y=price,x=longitude))+geom_point()+labs(title="Relationship of Price and Longitude",y="Price",x="Longitude")+theme_bw()+scale_y_continuous(labels = scales::dollar)
