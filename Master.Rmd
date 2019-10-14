@@ -46,11 +46,23 @@ library(plotly) # Animation of graphs and tables
 library(DT)
 ```
 
-# Abstract
+# Executive Summary
 
-*sample text*
+Using raw data downloaded from insideairbnb.com, we aim to find the best regression model of a 4-day trip in Barcelona for 2 people.  
+I. Data Wrangling: For further analysis, we replaced missing values, recategorized property types, and defined region based on average price of neighbourhood.  
+II. Data Visualization: We explored relationship between key variables through histogram, correlation matrix and an interactive map.  
+III. Model Building: To find the best fit model for explained variable “log_price_4_nights”, we conducted regression analysis using different explanatory variables. Our final model contains 13 explanatory variables, with adjusted R2 of 55.54%.  
+IV. Model Significance and Diagnostics: We further checked significance, residuals and collinearity of the final model.  
+V. Prediction: Finally, we leveraged the best model to predict the total cost of 4-night stay at an Airbnb, which has a private room, 10 reviews, and an average rating of 90.  
+
 
 # Explanatory Data Analysis
+
+## Background Information
+
+A student will leave straight for Barcelona after Sundowners on Thursday, and will catch the first flight on Monday morning to head back to classes. To estimate the cost to stay at a Barcelona Airbnb for four nights, we will build several models and use the best model to predict the total cost to stay at this Airbnb for 4 nights.  
+
+To solve this problem, we imported the relevant Airbnb data in Barcelona and conducted Exploratory Data Analysis (EDA) first. 
 
 ## Load Data
 
@@ -73,6 +85,14 @@ skimr::skim(raw_data)
 ```
 
 ## Cleaning Data
+
+In order to get clean data for further analysis, we processed it in following steps:  
+1) Filter data used for travel purposes only, using ‘minimum_nights <= 4’
+2) Select explanatory variables for price.  
+3) Replace missing value of ‘cleaning_fee’ with 0.  
+4) Simplify ‘property_type’ variable, as majority of the observations in the data are one of the top four or five property types.  
+5) Group neighbourhood to 3 regions based on geography and average prices in each neighbourhood.  
+6) Calculate explained variable: price for 4 nights for two people and its logarithm.
 
 ```{r clean_data, message=FALSE, warning=FALSE}
 
@@ -147,6 +167,7 @@ skimr::skim(clean_data)
 
 4. What are the correlations between variables? 
 
+The matrix below clearly shows correlation between variables.
 ```{r}
 #install("corrplot")
 library('corrplot')
@@ -160,6 +181,7 @@ cor <- cor(cormatrix)
 corrplot(cor,method = 'circle')
 cor
 ```
+Focusing on the two explained variables “price_4_nights” and “log_price_4_nights”, we can find explanatory variables that display high correlation with them are accommodates, bathrooms, bedrooms, beds and guests_included.
 
 5. Does each scatterplot support a linear relationship between variables?
 
