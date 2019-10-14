@@ -42,6 +42,7 @@ library(leaflet)
 library(car)
 library(corrplot)
 library(ggthemes)
+<<<<<<< HEAD
 library(plotly)
 library(DT)
 ```
@@ -64,6 +65,17 @@ A student will leave straight for Barcelona after Sundowners on Thursday, and wi
 # Explanatory Data Analysis
 
 ## Load Data
+=======
+library(plotly) # Animation of graphs and tables
+library(DT)
+```
+
+# Abstract
+
+*sample text*
+
+# Load Data
+>>>>>>> 73eea47fcef7f0f2d925bd9648f9ed91e2ec45b5
 
 We start by loading the raw data that we got from [Inside Airbnb website](http://insideairbnb.com/index.html). Insead of downloading the csv file and then loading it into our workplace, we use a direct web link to allow for others to automatically reproduce this piece of work without having to download the data themselves.
 
@@ -74,6 +86,7 @@ raw_data <- read_csv("http://data.insideairbnb.com/spain/catalonia/barcelona/201
 
 ```
 
+<<<<<<< HEAD
 ## Looking at raw data
 
 Before we begin analyzing our data, looking for relationships or producing any plots, we need to look at the available unprocessed data in order to understand what variables we are given and how they are strucuted. At this point, we are looking for any inconsistencies in our data like mising values(NAs), wrong formating or corrupt data points. Looking through our variables we should consider which are probaly going to be usable in later stages and which ones we should drop when we are cleaning our data in the step.
@@ -83,7 +96,18 @@ Before we begin analyzing our data, looking for relationships or producing any p
 kable(glimpse(raw_data)) %>%
   kable_styling() %>%
   scroll_box(width = "500px", height = "200px")
+=======
+# Explanatory Data Analysis
 
+## First look at raw data
+
+Before we begin analyzing our data, looking for relationships or producing any plots, we need to look at the available unprocessed data in order to understand what variables we are given and how they are strucuted. At this point, we are looking for any inconsistencies in our data like mising values(NAs), wrong formating or corrupt data points. Looking through our variables we should consider which are probaly going to be usable in later stages and which ones we should drop when we are cleaning our data in the step.
+
+```{r EDA, echo=TRUE, message=FALSE, warning=FALSE}
+>>>>>>> 73eea47fcef7f0f2d925bd9648f9ed91e2ec45b5
+
+glimpse(raw_data)
+  
 ```
 
 ## Cleaning Data
@@ -138,6 +162,7 @@ clean_data %>%
   arrange(desc(n))
 
 ```
+<<<<<<< HEAD
 
 # Exploring relationships
 
@@ -150,6 +175,20 @@ glimpse(clean_data)
 mosaic::favstats(price ~ square_feet, data = clean_data)
 
 skimr::skim(clean_data)
+=======
+
+## Exploring relationships
+
+```{r}
+
+glimpse(clean_data)
+
+mosaic::favstats(price ~ square_feet, data = clean_data)
+
+clean_data %>% 
+  select() %>% 
+  skimr::skim()
+>>>>>>> 73eea47fcef7f0f2d925bd9648f9ed91e2ec45b5
 
 ```
 
@@ -171,7 +210,10 @@ skimr::skim(clean_data)
 
 4. What are the correlations between variables? 
 
+<<<<<<< HEAD
 The matrix below clearly shows correlation between variables.
+=======
+>>>>>>> 73eea47fcef7f0f2d925bd9648f9ed91e2ec45b5
 ```{r}
 #install("corrplot")
 library('corrplot')
@@ -185,7 +227,10 @@ cor <- cor(cormatrix)
 corrplot(cor,method = 'circle')
 cor
 ```
+<<<<<<< HEAD
 Focusing on the two explained variables “price_4_nights” and “log_price_4_nights”, we can find explanatory variables that display high correlation with them are accommodates, bathrooms, bedrooms, beds and guests_included.
+=======
+>>>>>>> 73eea47fcef7f0f2d925bd9648f9ed91e2ec45b5
 
 5. Does each scatterplot support a linear relationship between variables?
 
@@ -249,12 +294,15 @@ clean_data %>%
 
 ## Base Map
 
+<<<<<<< HEAD
 You can use the tabs above to view different iterations of the map that explore the geographical distributions of some of our variables.
 
 The base map shows the location of every listing in Barcelona. Hovering over each property displays the type of the property. Clicking each property point displays the url of the listing.
 
 ```{r Base_map, echo=TRUE, message=FALSE, warning=FALSE}
 # Base map
+=======
+>>>>>>> 73eea47fcef7f0f2d925bd9648f9ed91e2ec45b5
 leaflet(data = filter(raw_data, minimum_nights <= 4)) %>% 
   addProviderTiles("OpenStreetMap.Mapnik") %>% 
   addCircleMarkers(lng = ~longitude, 
@@ -542,6 +590,206 @@ huxtable::huxreg(
 
 ```
 
+<<<<<<< HEAD
+=======
+# Regression Analysis
+
+## Visual Inspection
+
+```{r Visual Analysis}
+
+clean_data %>% 
+  ggplot(aes(x = price_4_nights)) +
+  geom_density() 
+  
+clean_data %>% 
+  ggplot(aes(x = log(price_4_nights))) +
+  geom_density()
+
+```
+
+*Which variable should you use for the regression model? Why?*
+
+## Model 1
+
+```{r model1}
+
+model1 <- lm(log_price_4_nights ~ prop_type_simplified + number_of_reviews + review_scores_rating, data = clean_data)
+
+get_regression_table(model1)
+
+get_regression_summaries(model1)
+
+autoplot(model1)
+
+vif(model1)
+
+```
+
+* review_scores: the estimate for this variable is -0.006	, denoting a very slight negative correlation with our dependent variable "log(price)". Moreover, looking at both the t-statistic (-7.781) and the p-value (0.000), we can conclude that the estimate is statistically significant at a 95% level.
+
+* prop_type_simplified: being a dummy variable the interpretation for this variables is different, choosing "Apartment" as our base value we are now studying the incremental effect, on avergage, that different types of property have on the dependent variable. Simply from looking at the p-values, we can infer that Other, 0.080, is not significant at a 95% level therefore not providing much explenatory power to our model. When looking at the other categories, their interpretation is different as they all show p-values lower than 0.05.
+
+* number_of_reviews is insignificant so remove it
+
+## Model 2
+
+```{r model2}
+
+model2 <- lm(log_price_4_nights ~ prop_type_simplified + review_scores_rating + room_type, data = clean_data)
+
+get_regression_table(model2)
+
+get_regression_summaries(model2)
+
+autoplot(model2)
+
+vif(model2)
+
+```
+
+*room_type: by simply adding this variable to our model we can see a significant improvement to the adjusted R2. The value improves from 0.041	to 0.493. Moreover, the estimate itself is significant in all its different categories and denotes the cheaper prices for houses that are shared, either with private or shared room.
+
+## Model 3
+
+* While all the new dummy variables appear significant at the 95% level when looking at their p-values, it seems odd that while bedrooms positively affect the dependent variable, it is the opposite for the number of beds. This phenomenon is likely to be explained by the multi-collinearity between the two variables.
+
+```{r model3}
+
+model3 <- lm(log_price_4_nights ~ prop_type_simplified + review_scores_rating + room_type + bathrooms + bedrooms + beds + accommodates, data = clean_data)
+
+get_regression_table(model3)
+
+get_regression_summaries(model3)
+
+autoplot(model3)
+
+vif(model3)
+
+```
+
+
+## Model 4
+
+* From our regression it does appear that superhosts require a slight price premium, the estimate takes a value of 0.073 significant at a 95% level (p-value = .000). It terms of the goodnessof fit of our model, the Adjusted R2 is now 0.565, exactly the same as before implying that the premium commanded by "superhosts" doesn't really add explenatory power to our model.
+
+```{r model4}
+
+model4 <- lm(log_price_4_nights ~ prop_type_simplified + review_scores_rating + room_type + bathrooms + beds + accommodates + host_is_superhost, data = clean_data)
+
+get_regression_table(model4)
+
+get_regression_summaries(model4)
+
+autoplot(model4)
+
+vif(model4)
+
+```
+
+
+## Model 5
+
+* is_location_exact is not significant at a 95% level (p-value = 0.455) so we should remove it.
+
+```{r model5}
+
+model5 <- lm(log_price_4_nights ~ prop_type_simplified + review_scores_rating + room_type + bathrooms + beds + accommodates + host_is_superhost + is_location_exact, data = clean_data)
+
+get_regression_table(model5)
+
+get_regression_summaries(model5)
+
+autoplot(model5)
+
+vif(model5)
+
+```
+
+
+## Model 6
+
+```{r model6}
+
+model6 <- lm(log_price_4_nights ~ prop_type_simplified + review_scores_rating + room_type + bathrooms + beds + accommodates + host_is_superhost + region_by_price, data = clean_data)
+
+get_regression_table(model6)
+
+get_regression_summaries(model6)
+
+autoplot(model6)
+
+vif(model6)
+
+```
+
+To better understand our findings we grouped our 10 initial locations in to 3 bigger areas: North, South and Center setting the latter as our base-line. From this new model we can see that the Central region is clearly the most expensive and North is the cheapest on average. P-values for all are below 0.05 so we can accept the estimates as significant at 95%. By adding this division into bigger areas we can also notice an improvement to our adjusted R2 from 0.565 to 0.57
+
+## Model 7
+
+What is the effect of cancellation_policy on log_price_4_nights, after we control for other variables?
+
+*cancellation_policy not sign so remove, except 14 and strict 30*
+
+```{r model7}
+
+model7 <- lm(log_price_4_nights ~ prop_type_simplified + review_scores_rating + room_type + bathrooms + beds + accommodates + host_is_superhost + region_by_price + cancellation_policy, data = clean_data)
+
+get_regression_table(model7)
+
+get_regression_summaries(model7)
+
+autoplot(model7)
+
+vif(model7)
+
+```
+
+We have now added the cancellation_policy dummy variable that refers to how many days before arrival you can still cancel the booking and get a refund. We can infer that this variable is not significant at a 95% level for the most part. Only "super strict policy" and "14 with grace" show acceptable p-values, but we considered this not enough to keep the variable. Morever it adds only 0.002 to the adjusted R2, a negligible effect.
+
+## Final Model
+
+```{r model_final}
+
+model_final <- lm(log_price_4_nights ~ prop_type_simplified + review_scores_rating + room_type + bathrooms + beds + accommodates + host_is_superhost + region_by_price + host_total_listings_count + instant_bookable + guests_included + security_deposit + number_of_reviews, data = clean_data)
+
+get_regression_table(model_final)
+
+get_regression_summaries(model_final)
+
+autoplot(model_final)
+
+vif(model_final)
+
+```
+
+# Conclusion
+
+```{r}
+
+huxtable::huxreg(
+  "Model 1" = model1, 
+  "Model 2" = model2, 
+  "Model 3" = model3, 
+  "Model 4" = model4,
+  "Model 5" = model5,
+  "Model 6" = model6,
+  "Model 7" = model7,
+  "Final Model" = model_final,
+  number_format = "%.2f",
+  bold_signif = 0.5,
+  statistics = c("Residuals" = "sigma", 'Adjusted R squared' = 'adj.r.squared', 'F statistic' = 'statistic',
+  'P value' = 'p.value')) %>% 
+  set_caption("Airbnb Barcelona models")
+
+```
+
+```{r}
+
+
+```
+
+>>>>>>> 73eea47fcef7f0f2d925bd9648f9ed91e2ec45b5
 ## Assumptions
 
 * number_of_reviews 10
