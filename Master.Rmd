@@ -33,7 +33,7 @@ library(mosaic)
 library(huxtable)
 library(kableExtra)
 library(tidyquant)
-library(readxl) #need to load readxl explicitly, as it is not a core tidyverse 
+library(readxl)
 library(GGally)
 library(broom)
 library(scales)
@@ -42,29 +42,30 @@ library(leaflet)
 library(car)
 library(corrplot)
 library(ggthemes)
-library(plotly) # Animation of graphs and tables
+library(plotly)
 library(DT)
 ```
 
 # Executive Summary
 
-Using raw data downloaded from insideairbnb.com, we aim to find the best regression model of a 4-day trip in Barcelona for 2 people.  
-I. Data Wrangling: For further analysis, we replaced missing values, recategorized property types, and defined region based on average price of neighbourhood.  
-II. Data Visualization: We explored relationship between key variables through histogram, correlation matrix and an interactive map.  
-III. Model Building: To find the best fit model for explained variable “log_price_4_nights”, we conducted regression analysis using different explanatory variables. Our final model contains 13 explanatory variables, with adjusted R2 of 55.54%.  
-IV. Model Significance and Diagnostics: We further checked significance, residuals and collinearity of the final model.  
-V. Prediction: Finally, we leveraged the best model to predict the total cost of 4-night stay at an Airbnb, which has a private room, 10 reviews, and an average rating of 90.  
+Using raw data downloaded from insideairbnb.com, we aim to find the best regression model of a 4-day trip in Barcelona for 2 people:
 
-
-# Explanatory Data Analysis
+1. Executive Summary: Overview of report and background information of the scope
+2. Data Wrangling: For further analysis, we replaced missing values, recategorized property types, and defined region based on average price of neighbourhood.  
+3. Data Visualization: We explored relationship between key variables through histogram, correlation matrix and an interactive map.  
+4. Model Building: To find the best fit model for explained variable “log_price_4_nights”, we conducted regression analysis using different explanatory variables. Our final model contains 13 explanatory variables, with adjusted R2 of 55.54%.  
+5. Model Significance and Diagnostics: We further checked significance, residuals and collinearity of the final model.  
+6. Prediction: Finally, we leveraged the best model to predict the total cost of 4-night stay at an Airbnb, which has a private room, 10 reviews, and an average rating of 90.  
 
 ## Background Information
 
-A student will leave straight for Barcelona after Sundowners on Thursday, and will catch the first flight on Monday morning to head back to classes. To estimate the cost to stay at a Barcelona Airbnb for four nights, we will build several models and use the best model to predict the total cost to stay at this Airbnb for 4 nights.  
+A student will leave straight for Barcelona after Sundowners on Thursday, and will catch the first flight on Monday morning to head back to classes. To estimate the cost to stay at a Barcelona Airbnb for four nights, we will build several models and use the best model to predict the total cost to stay at this Airbnb for 4 nights.
 
-To solve this problem, we imported the relevant Airbnb data in Barcelona and conducted Exploratory Data Analysis (EDA) first. 
+# Explanatory Data Analysis
 
 ## Load Data
+
+We start by loading the raw data that we got from [Inside Airbnb website](http://insideairbnb.com/index.html). Insead of downloading the csv file and then loading it into our workplace, we use a direct web link to allow for others to automatically reproduce this piece of work without having to download the data themselves.
 
 ```{r load_data, message=FALSE, warning=FALSE}
 
@@ -73,26 +74,25 @@ raw_data <- read_csv("http://data.insideairbnb.com/spain/catalonia/barcelona/201
 
 ```
 
-
 ## Looking at raw data
+
+Before we begin analyzing our data, looking for relationships or producing any plots, we need to look at the available unprocessed data in order to understand what variables we are given and how they are strucuted. At this point, we are looking for any inconsistencies in our data like mising values(NAs), wrong formating or corrupt data points. Looking through our variables we should consider which are probaly going to be usable in later stages and which ones we should drop when we are cleaning our data in the step.
 
 ```{r EDA, echo=TRUE, message=FALSE, warning=FALSE}
 
 glimpse(raw_data)
 
-skimr::skim(raw_data)
-
 ```
 
 ## Cleaning Data
 
-In order to get clean data for further analysis, we processed it in following steps:  
-1) Filter data used for travel purposes only, using ‘minimum_nights <= 4’
-2) Select explanatory variables for price.  
-3) Replace missing value of ‘cleaning_fee’ with 0.  
-4) Simplify ‘property_type’ variable, as majority of the observations in the data are one of the top four or five property types.  
-5) Group neighbourhood to 3 regions based on geography and average prices in each neighbourhood.  
-6) Calculate explained variable: price for 4 nights for two people and its logarithm.
+At this stage, we need to prepare our data set in order to be able to create representative plots and models. We choose to perform all of our data wrangling together to avoid duplication and allow for easier understanding:
+
+* We filtered the minimum_nights to be less than or equal to four as our booking is only for four days. This will also filter out any properties that are not meant for holidays, these usually have a minimum_nights of 30.
+* We select only the relevant variables to remain in our data set both for simplicity/tidyness and increased speed.
+* We reformate variables from strings to numerics using parse_numeric(). This is necessary because prices were given with a dollar sign and in character format.
+* Using case_when(), we replace all mising values in cleaning_fee to zeros (assumption) and create new simplified variables for property_type and neighbourhood_group_cleansed. This will come in hadny when we are creating our models because it is going to limit the number of dummy variables.
+* Lastly, we calculate price_4_nights for each listing by multiplying the price per night by four, adding the cleaning_fee and any extra_people charges. We then calculate the log of price_4_nights to get a normally distributed variable.
 
 ```{r clean_data, message=FALSE, warning=FALSE}
 
@@ -137,7 +137,9 @@ clean_data %>%
 
 ```
 
-## Exploring relationships
+# Exploring relationships
+
+## Overview
 
 ```{r}
 
@@ -241,10 +243,16 @@ clean_data %>%
 ```
 
 
-# Mapping
+# Maps {.tabset}
 
-```{r MAP, echo=TRUE, message=FALSE, warning=FALSE}
+## Base Map
 
+You can use the tabs above to view different iterations of the map that explore the geographical distributions of some of our variables.
+
+The base map shows the location of every listing in Barcelona. Hovering over each property displays the type of the property. Clicking each property point displays the url of the listing.
+
+```{r Base_map, echo=TRUE, message=FALSE, warning=FALSE}
+# Base map
 leaflet(data = filter(raw_data, minimum_nights <= 4)) %>% 
   addProviderTiles("OpenStreetMap.Mapnik") %>% 
   addCircleMarkers(lng = ~longitude, 
@@ -253,7 +261,77 @@ leaflet(data = filter(raw_data, minimum_nights <= 4)) %>%
                    fillColor = "blue", 
                    fillOpacity = 0.4, 
                    popup = ~listing_url,
-                   label = ~property_type)
+                   label = ~property_type,
+                   stroke = FALSE)
+
+```
+
+## Region divide map
+
+This map shows how we decided to split our neighbourhoods into three categories:
+
+* Red = North
+* Blue = Center
+* Green = South
+
+Hovering over each listing shows its original neighbourhood.
+
+```{r region_map, echo=TRUE, message=FALSE, warning=FALSE}
+
+pal <- colorFactor(c("navy", "red", "green"), domain = c("North", "Center", "South"))
+
+leaflet(data = filter(clean_data, minimum_nights <= 4)) %>% 
+  addProviderTiles("OpenStreetMap.Mapnik") %>% 
+  addCircleMarkers(lng = ~longitude, 
+                   lat = ~latitude, 
+                   radius = 2, 
+                   fillColor = ~pal(region_by_price), 
+                   fillOpacity = 0.8, 
+                   label = ~neighbourhood_group_cleansed,
+                   stroke = FALSE)
+
+```
+
+## Property type
+
+This map shows the room type for each listing:
+
+* Blue = Private room
+* Red = Entire home / Apartment
+* Green = Shared Room
+
+
+```{r property_type_map, echo=TRUE, message=FALSE, warning=FALSE}
+
+pal <- colorFactor(c("red", "navy", "green"), domain = c("Entire home/apt", "Private room", "Shared room"))
+
+leaflet(data = filter(clean_data, minimum_nights <= 4)) %>% 
+  addProviderTiles("OpenStreetMap.Mapnik") %>% 
+  addCircleMarkers(lng = ~longitude, 
+                   lat = ~latitude, 
+                   radius = 2, 
+                   fillColor = ~pal(room_type), 
+                   fillOpacity = 0.8, 
+                   label = ~room_type,
+                   stroke = FALSE)
+```
+
+## Prices
+
+```{r prices_map, echo=TRUE, message=FALSE, warning=FALSE}
+
+pal <- colorQuantile("Blues", clean_data$price, n = 10)
+
+leaflet(data = filter(clean_data, minimum_nights <= 4)) %>% 
+  addProviderTiles("OpenStreetMap.Mapnik") %>% 
+  addCircleMarkers(lng = ~longitude, 
+                   lat = ~latitude, 
+                   radius = 2, 
+                   fillColor = ~pal(price), 
+                   fillOpacity = 0.8, 
+                   popup = ~listing_url,
+                   label = ~property_type,
+                   stroke = FALSE)
 
 ```
 
