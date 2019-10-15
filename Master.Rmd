@@ -246,19 +246,11 @@ clean_data %>%
 # Maps {.tabset}
 
 ## Base Map
-<<<<<<< HEAD
 
 You can use the tabs above to view different iterations of the map that explore the geographical distributions of some of our variables.
 
 The base map shows the location of every listing in Barcelona. Hovering over each property displays the type of the property. Clicking each property point displays the url of the listing.
 
-=======
-
-You can use the tabs above to view different iterations of the map that explore the geographical distributions of some of our variables.
-
-The base map shows the location of every listing in Barcelona. Hovering over each property displays the type of the property. Clicking each property point displays the url of the listing.
-
->>>>>>> 73eea47fcef7f0f2d925bd9648f9ed91e2ec45b5
 ```{r Base_map, echo=TRUE, message=FALSE, warning=FALSE}
 # Base map
 leaflet(data = filter(raw_data, minimum_nights <= 4)) %>% 
@@ -274,15 +266,9 @@ leaflet(data = filter(raw_data, minimum_nights <= 4)) %>%
 
 ```
 
-<<<<<<< HEAD
 ## Region
 
-The map shows how we decided to split our neighbourhoods into three categories:
-=======
-## Region divide map
-
 This map shows how we decided to split our neighbourhoods into three categories:
->>>>>>> 73eea47fcef7f0f2d925bd9648f9ed91e2ec45b5
 
 * Red = North
 * Blue = Center
@@ -308,20 +294,12 @@ leaflet(data = filter(clean_data, minimum_nights <= 4)) %>%
 
 ## Property type
 
-<<<<<<< HEAD
-The map shows the room type for each listing:
-=======
 This map shows the room type for each listing:
->>>>>>> 73eea47fcef7f0f2d925bd9648f9ed91e2ec45b5
 
 * Blue = Private room
 * Red = Entire home / Apartment
 * Green = Shared Room
 
-<<<<<<< HEAD
-=======
-
->>>>>>> 73eea47fcef7f0f2d925bd9648f9ed91e2ec45b5
 ```{r property_type_map, echo=TRUE, message=FALSE, warning=FALSE}
 
 pal <- colorFactor(c("red", "navy", "green"), domain = c("Entire home/apt", "Private room", "Shared room"))
@@ -339,17 +317,11 @@ leaflet(data = filter(clean_data, minimum_nights <= 4)) %>%
 
 ## Prices
 
-<<<<<<< HEAD
 The map shows the geographical distribtion of prices per night. Listings with higher prices are represented with darker hues of blue.
 
 ```{r prices_map, echo=TRUE, message=FALSE, warning=FALSE}
 
 pal <- colorQuantile("Blues", clean_data$price, n = 5)
-=======
-```{r prices_map, echo=TRUE, message=FALSE, warning=FALSE}
-
-pal <- colorQuantile("Blues", clean_data$price, n = 10)
->>>>>>> 73eea47fcef7f0f2d925bd9648f9ed91e2ec45b5
 
 leaflet(data = filter(clean_data, minimum_nights <= 4)) %>% 
   addProviderTiles("OpenStreetMap.Mapnik") %>% 
@@ -358,12 +330,9 @@ leaflet(data = filter(clean_data, minimum_nights <= 4)) %>%
                    radius = 2, 
                    fillColor = ~pal(price), 
                    fillOpacity = 0.8, 
-<<<<<<< HEAD
                    label = ~price,
-=======
                    popup = ~listing_url,
                    label = ~property_type,
->>>>>>> 73eea47fcef7f0f2d925bd9648f9ed91e2ec45b5
                    stroke = FALSE)
 
 ```
