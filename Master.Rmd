@@ -50,12 +50,12 @@ library(DT)
 
 Using raw data downloaded from insideairbnb.com, we aim to find the best regression model of a 4-day trip in Barcelona for 2 people:
 
-1. Executive Summary: Overview of report and background information of the scope
-2. Data Wrangling: For further analysis, we replaced missing values, recategorized property types, and defined region based on average price of neighbourhood.  
-3. Data Visualization: We explored relationship between key variables through histogram, correlation matrix and an interactive map.  
-4. Model Building: To find the best fit model for explained variable “log_price_4_nights”, we conducted regression analysis using different explanatory variables. Our final model contains 13 explanatory variables, with adjusted R2 of 55.54%.  
-5. Model Significance and Diagnostics: We further checked significance, residuals and collinearity of the final model.  
-6. Prediction: Finally, we leveraged the best model to predict the total cost of 4-night stay at an Airbnb, which has a private room, 10 reviews, and an average rating of 90.  
+1. **Executive Summary:** Overview of report and background information of the scope
+2. **Data Wrangling:** For further analysis, we replaced missing values, re categorized property types, and defined region based on average price of neighbourhood.  
+3. **Data Visualization:** We explored relationship between key variables through histogram, correlation matrix and an interactive map.  
+4. **Model Building:** To find the best fit model for explained variable “log_price_4_nights”, we conducted regression analysis using different explanatory variables. Our final model contains 13 explanatory variables, with adjusted R2 of 55.54%.  
+5. **Model Significance and Diagnostics:** We further checked significance, residuals and collinearity of the final model.  
+6. **Prediction:** Finally, we leveraged the best model to predict the total cost of 4-night stay at an Airbnb, which has a private room, 10 reviews, and an average rating of 90.  
 
 ## Background Information
 
@@ -65,7 +65,7 @@ A student will leave straight for Barcelona after Sundowners on Thursday, and wi
 
 ## Load Data
 
-We start by loading the raw data that we got from [Inside Airbnb website](http://insideairbnb.com/index.html). Insead of downloading the csv file and then loading it into our workplace, we use a direct web link to allow for others to automatically reproduce this piece of work without having to download the data themselves.
+We start by loading the raw data that we got from [Inside Airbnb website](http://insideairbnb.com/index.html). Instead of downloading the csv file and then loading it into our workplace, we use a direct web link to allow for others to automatically reproduce this piece of work without having to download the data themselves.
 
 ```{r load_data, message=FALSE, warning=FALSE}
 
@@ -76,7 +76,7 @@ raw_data <- read_csv("http://data.insideairbnb.com/spain/catalonia/barcelona/201
 
 ## Looking at raw data
 
-Before we begin analyzing our data, looking for relationships or producing any plots, we need to look at the available unprocessed data in order to understand what variables we are given and how they are strucuted. At this point, we are looking for any inconsistencies in our data like mising values(NAs), wrong formating or corrupt data points. Looking through our variables we should consider which are probaly going to be usable in later stages and which ones we should drop when we are cleaning our data in the step.
+Before we begin analyzing our data, looking for relationships or producing any plots, we need to look at the available unprocessed data in order to understand what variables we are given and how they are structured. At this point, we are looking for any inconsistencies in our data like missing values(NAs), wrong formatting or corrupt data points. Looking through our variables we should consider which are probably going to be usable in later stages and which ones we should drop when we are cleaning our data in the step.
 
 ```{r EDA, echo=TRUE, message=FALSE, warning=FALSE}
 
@@ -88,11 +88,13 @@ glimpse(raw_data)
 
 At this stage, we need to prepare our data set in order to be able to create representative plots and models. We choose to perform all of our data wrangling together to avoid duplication and allow for easier understanding:
 
-* We filtered the minimum_nights to be less than or equal to four as our booking is only for four days. This will also filter out any properties that are not meant for holidays, these usually have a minimum_nights of 30.
-* We select only the relevant variables to remain in our data set both for simplicity/tidyness and increased speed.
-* We reformate variables from strings to numerics using parse_numeric(). This is necessary because prices were given with a dollar sign and in character format.
-* Using case_when(), we replace all mising values in cleaning_fee to zeros (assumption) and create new simplified variables for property_type and neighbourhood_group_cleansed. This will come in hadny when we are creating our models because it is going to limit the number of dummy variables.
-* Lastly, we calculate price_4_nights for each listing by multiplying the price per night by four, adding the cleaning_fee and any extra_people charges. We then calculate the log of price_4_nights to get a normally distributed variable.
+* **Minimum nights filter**: We filtered the minimum_nights to be less than or equal to four as our booking is only for four days. This will also filter out any properties that are not meant for holidays, these usually have a minimum_nights of 30.
+* **Select relevant variables**: We select only the relevant variables to remain in our data set both for simplicity/tidiness and increased speed.
+* **Change of variable type**: We reformat variables from strings to numerics using parse_numeric(). This is necessary because prices were given with a dollar sign and in character format.
+* **Replacement and simplification**: Using case_when(), we replace all missing values in cleaning_fee to zeros (assumption) and create new simplified variables for property_type and neighbourhood_group_cleansed. This will come in handy when we are creating our models because it is going to limit the number of dummy variables.
+  + Specifically, we simplified property types from 10 to 5, as shown in the table below
+  + For neighbourhood, we simplified the 10 districts further down to 3, which we will detail later  
+* **Output variable**: Lastly, we calculate price_4_nights for each listing by multiplying the price per night by four, adding the cleaning_fee and any extra_people charges. We then calculate the log of price_4_nights to get a normally distributed variable.
 
 ```{r clean_data, message=FALSE, warning=FALSE}
 
@@ -123,56 +125,84 @@ clean_data <- raw_data %>%
          price_4_nights = 4*price + cleaning_fee + 4*ifelse(guests_included < 2, (2 - guests_included) * extra_people, 0),
          log_price_4_nights = log(price_4_nights))
 
-# Frequency analysis of property types
-
-clean_data_sorted <- clean_data %>% 
-  group_by(property_type) %>% 
-  summarize("Count" = n()) %>% 
-  arrange(desc(Count)) %>%
-  head()
-
-clean_data %>%
-  count(property_type, prop_type_simplified) %>%
-  arrange(desc(n))
-
 ```
 
 # Exploring relationships
 
-## Overview
+In this section, we explore relationships between variables both visually and through the help of functions. 
 
-```{r}
+## Creating Summary Statistics
 
-glimpse(clean_data)
+The table below shows a quick summary of our clean_data in comparison to our previous glimpse of the the raw_data.
 
-mosaic::favstats(price ~ square_feet, data = clean_data)
+```{r message=FALSE, warning=FALSE}
 
-skimr::skim(clean_data)
+skimr::skim(clean_data) %>% 
+  kable() %>% 
+  kable_styling() %>% 
+  scroll_box(width = "100%", height = "300px")
 
 ```
 
-**Answer at minimum**:
+We then explore the relationship of price per night and beds. Out initial intuition indicated that this should be one of the strongest predictors.
 
-*1. How many variables/columns? How many rows/observations?* 
+```{r message=FALSE, warning=FALSE}
 
-* There are `r ncol(raw_data)` variables and `r nrow(raw_data)` observations.
+mosaic::favstats(price ~ beds, 
+                 data = clean_data,
+                 na.rm = TRUE) %>% 
+  select(-missing) %>% 
+  head(10) %>% 
+  kable() %>% 
+  kable_styling()
 
-*2. Which variables are numbers?*
+```
 
-`r select_if(raw_data, is.numeric) %>% colnames()`
+We then look at the number of listings per property_type and their respective simplified versions. This is also helpful to validate that we have split our property types correctly.
 
-3. Which are categorical or factor variables (numeric or character variables with variables that have a fixed and known set of possible values?
+```{r message=FALSE, warning=FALSE}
 
-  These are the following caterorical variables: `r select_if(raw_data, is.numeric) %>% colnames()`
+clean_data %>%
+  count(property_type, prop_type_simplified) %>%
+  arrange(desc(n)) %>% 
+  kable() %>% 
+  scroll_box(width = "100%", height = "300px")
 
-  These are the following factor variables: `r select_if(raw_data, is.factor) %>% colnames()`
+```
 
-4. What are the correlations between variables? 
+**Findings from the above data:**
+
+**1. How many variables/columns? How many rows/observations?**
+
+```{r message=FALSE, warning=FALSE}
+
+paste0("There are ",ncol(raw_data), " variables and ",nrow(raw_data), " observations.")
+
+```
+
+**2. Which variables are numbers?**
+
+```{r message=FALSE, warning=FALSE}
+
+select_if(raw_data, is.numeric) %>% colnames()
+
+```
+
+**3. Which are categorical or factor variables (numeric or character variables with variables that have a fixed and known set of possible values?**
+
+```{r message=FALSE, warning=FALSE}
+
+select_if(raw_data, is.logical) %>% colnames()
+
+select_if(raw_data, is.character) %>% colnames()
+
+```
+
+**4. What are the correlations between variables?**
 
 The matrix below clearly shows correlation between variables.
-```{r}
-#install("corrplot")
-library('corrplot')
+
+```{r message=FALSE, warning=FALSE}
 
 cormatrix <- clean_data %>% 
   drop_na() %>% 
@@ -181,46 +211,83 @@ cormatrix <- clean_data %>%
 cor <- cor(cormatrix)
 
 corrplot(cor,method = 'circle')
-cor
+
+kable(cor) %>%
+  kable_styling() %>%
+  scroll_box(width = "100%", height = "300px")
+
 ```
+
 Focusing on the two explained variables “price_4_nights” and “log_price_4_nights”, we can find explanatory variables that display high correlation with them are accommodates, bathrooms, bedrooms, beds and guests_included.
 
-5. Does each scatterplot support a linear relationship between variables?
+**5. Does each scatterplot support a linear relationship between variables?**
 
-No
+There's little to no support for linear relationships between prices and other variables.
 
 ```{r message=FALSE, warning=FALSE}
-ggplot(clean_data,aes(y=price,x=latitude))+geom_point()+labs(title="Relationship of Price and Latitude",y="Price",x="Latitude")+theme_bw()+scale_y_continuous(labels = scales::dollar)
 
-ggplot(clean_data,aes(y=price,x=longitude))+geom_point()+labs(title="Relationship of Price and Longitude",y="Price",x="Longitude")+theme_bw()+scale_y_continuous(labels = scales::dollar)
+ggplot(clean_data,aes(y = price,x = bathrooms)) + 
+  geom_point() + 
+  labs(title = "Relationship of Price and bathrooms",
+       y = "Price",
+       x = "Bathrooms") + 
+  theme_clean() + 
+  scale_y_continuous(labels = scales::dollar) +
+  geom_smooth(method = lm, 
+              se = FALSE)
 
-ggplot(clean_data,aes(y=price,x=host_listings_count))+geom_point()+labs(title="Relationship of Price and host listings count",y="Price",x="host listing count")+theme_bw()+scale_y_continuous(labels = scales::dollar)
+```
 
-ggplot(clean_data,aes(y=price,x=accommodates))+geom_point()+labs(title="Relationship of Price and accommodates",y="Price",x="Accommodates")+theme_bw()+scale_y_continuous(labels = scales::dollar)
+```{r message=FALSE, warning=FALSE}
 
-ggplot(clean_data,aes(y=price,x=bathrooms))+geom_point()+labs(title="Relationship of Price and bathrooms",y="Price",x="Bathrooms")+theme_bw()+scale_y_continuous(labels = scales::dollar)
+ggplot(clean_data,aes(y = price,x = bedrooms, group = bedrooms)) + 
+  geom_boxplot() + 
+  labs(title = "Relationship of Price and bedrooms",
+       y = "Price",
+       x = "Bedrooms") + 
+  theme_clean()
 
-ggplot(clean_data,aes(y=price,x=bedrooms))+geom_point()+labs(title="Relationship of Price and bedrooms",y="Price",x="Bedrooms")+theme_bw()+scale_y_continuous(labels = scales::dollar)
+```
 
-ggplot(clean_data,aes(y=price,x=beds))+geom_point()+labs(title="Relationship of Price and latitude",y="Price",x="Beds")+theme_bw()+scale_y_continuous(labels = scales::dollar)
+```{r message=FALSE, warning=FALSE}
 
-ggplot(clean_data,aes(y=price,x=square_feet))+geom_point()+labs(title="Relationship of Price and Square feet",y="Price",x="Square feet")+theme_bw()+scale_y_continuous(labels = scales::dollar)
+ggplot(clean_data,aes(y = price,x = beds)) + 
+  geom_point() + 
+  labs(title = "Relationship of Price and number of beds",
+       y = "Price",
+       x = "Beds") +
+  theme_clean() + 
+  scale_y_continuous(labels = scales::dollar) +
+  geom_smooth(method = lm, 
+              se = FALSE)
 
-ggplot(clean_data,aes(y=price,x=security_deposit))+geom_point()+labs(title="Relationship of Price and Security deposit",y="Price",x="Security Deposit")+theme_bw()+scale_y_continuous(labels = scales::dollar)
+```
 
-ggplot(clean_data,aes(y=price,x=cleaning_fee))+geom_point()+labs(title="Relationship of Price and Cleaning Fee",y="Price",x="Cleaning Fee")+theme_bw()+scale_y_continuous(labels = scales::dollar)
+```{r message=FALSE, warning=FALSE}
 
-ggplot(clean_data,aes(y=price,x=guests_included))+geom_point()+labs(title="Relationship of Price and Guests included",y="Price",x="Guests included")+theme_bw()+scale_y_continuous(labels = scales::dollar)
+ggplot(clean_data,aes(y = price,x = number_of_reviews)) + 
+  geom_point() + 
+  labs(title = "Relationship of Price and Number reviews",
+       y = "Price",
+       x = "Number reviews") + 
+  theme_clean() + 
+  scale_y_continuous(labels = scales::dollar) +
+  geom_smooth(method = lm, 
+              se = FALSE)
 
-ggplot(clean_data,aes(y=price,x=extra_people))+geom_point()+labs(title="Relationship of Price and Extra people",y="Price",x="Extra people")+theme_bw()+scale_y_continuous(labels = scales::dollar)
+```
 
-ggplot(clean_data,aes(y=price,x=minimum_nights))+geom_point()+labs(title="Relationship of Price and Minimum Nights",y="Price",x="Minimum Nights")+theme_bw()+scale_y_continuous(labels = scales::dollar)
+```{r message=FALSE, warning=FALSE}
 
-ggplot(clean_data,aes(y=price,x=maximum_nights))+geom_point()+labs(title="Relationship of Price and Maximum Nights",y="Price",x="Maximum Nights")+theme_bw()+scale_y_continuous(labels = scales::dollar)
-
-ggplot(clean_data,aes(y=price,x=number_of_reviews))+geom_point()+labs(title="Relationship of Price and Number reviews",y="Price",x="Number reviews")+theme_bw()+scale_y_continuous(labels = scales::dollar)
-
-ggplot(clean_data,aes(y=price,x=review_scores_rating))+geom_point()+labs(title="Relationship of Price and Review scores rating",y="Price",x="Review scores rating")+theme_bw()+scale_y_continuous(labels = scales::dollar)
+ggplot(clean_data,aes(y = price,x = review_scores_rating)) + 
+  geom_point() + 
+  labs(title = "Relationship of Price and Review scores rating",
+       y = "Price",
+       x = "Review scores rating") +
+  theme_clean() + 
+  scale_y_continuous(labels = scales::dollar) +
+  geom_smooth(method = lm, 
+              se = FALSE)
 
 ```
 
@@ -228,17 +295,36 @@ ggplot(clean_data,aes(y=price,x=review_scores_rating))+geom_point()+labs(title="
 
 Yes, there are conditional correlations subject to the type of property they are renting.
 
-##  Visualisations
+##  Plots
+
+The graph shows the density distribution of log price 4 nights for each simplified property type. We can observe that "serviced apartments" have the highest mean log price for 4 nights, followed by "other", "lofts", "apartments" and lastly "houses".
+
+```{r message=FALSE, warning=FALSE}
+
+price_dist <-
+  ggplot(clean_data, aes(x = log_price_4_nights, fill = prop_type_simplified)) +
+    geom_density(alpha = 0.5) +
+    theme_clean() +
+    scale_fill_economist() +
+    labs(title = "Log 4 nights price density plot by property type",
+         x = "Log 4 nights price",
+         y = "Density",
+         fill = "Property type")
+
+ggplotly(price_dist,
+         tooltip = c("prop_type_simplified"))
+
+```
+
+In the plot below, we can see that for superhosts, the review scores are higher than non-superhosts, which suggests higher quality in client communication or in properties. The distribution of review scores for superhosts also has higher spike than that for non-superhosts, suggesting higher concentrations in ratings close to 100.
 
 ```{r visualizations, echo=TRUE, message=FALSE, warning=FALSE}
 
 clean_data %>%
-  #mutate(host_is_superhost = case_when(
-    #host_is_superhost %in% TRUE ~ superhost, FALSE ~ non_superhost, NA)) %>%
   select(host_is_superhost, price, review_scores_rating) %>%
   na.omit() %>%
   ggpairs(aes(colour = host_is_superhost, alpha = 0.3)) +
-  theme_bw() 
+  theme_clean()
 
 ```
 
@@ -317,7 +403,7 @@ leaflet(data = filter(clean_data, minimum_nights <= 4)) %>%
 
 ## Prices
 
-The map shows the geographical distribtion of prices per night. Listings with higher prices are represented with darker hues of blue.
+The map shows the geographical distribution of prices per night. Listings with higher prices are represented with darker hues of blue.
 
 ```{r prices_map, echo=TRUE, message=FALSE, warning=FALSE}
 
@@ -370,7 +456,7 @@ In this section, we show the development process of our model, starting with a f
 
 * review_scores: the estimate for this variable is -0.006	, denoting a very slight negative correlation with our dependent variable "log(price)". Moreover, looking at both the t-statistic (-7.781) and the p-value (0.000), we can conclude that the estimate is statistically significant at a 95% level.
 
-* prop_type_simplified: being a dummy variable the interpretation for this variables is different, choosing "Apartment" as our base value we are now studying the incremental effect, on avergage, that different types of property have on the dependent variable. Simply from looking at the p-values, we can infer that Other, 0.080, is not significant at a 95% level therefore not providing much explenatory power to our model. When looking at the other categories, their interpretation is different as they all show p-values lower than 0.05.
+* prop_type_simplified: being a dummy variable the interpretation for this variables is different, choosing "Apartment" as our base value we are now studying the incremental effect, on average, that different types of property have on the dependent variable. Simply from looking at the p-values, we can infer that Other, 0.080, is not significant at a 95% level therefore not providing much explanatory power to our model. When looking at the other categories, their interpretation is different as they all show p-values lower than 0.05.
 
 * number_of_reviews: is insignificant with a p-value of 0.68, thus we choose to omit it from our next model.
 
@@ -378,13 +464,19 @@ In this section, we show the development process of our model, starting with a f
 
 model1 <- lm(log_price_4_nights ~ prop_type_simplified + number_of_reviews + review_scores_rating, data = clean_data)
 
-get_regression_table(model1)
+get_regression_table(model1) %>%
+  kable() %>% 
+  kable_styling()
 
-get_regression_summaries(model1)
+get_regression_summaries(model1) %>%
+  kable() %>% 
+  kable_styling()
 
 autoplot(model1)
 
-vif(model1)
+vif(model1) %>%
+  kable() %>% 
+  kable_styling()
 
 ```
 
@@ -398,13 +490,19 @@ vif(model1)
 
 model2 <- lm(log_price_4_nights ~ prop_type_simplified + review_scores_rating + room_type, data = clean_data)
 
-get_regression_table(model2)
+get_regression_table(model2) %>%
+  kable() %>% 
+  kable_styling()
 
-get_regression_summaries(model2)
+get_regression_summaries(model2) %>%
+  kable() %>% 
+  kable_styling()
 
 autoplot(model2)
 
-vif(model2)
+vif(model2) %>%
+  kable() %>% 
+  kable_styling()
 
 ```
 
@@ -416,31 +514,43 @@ vif(model2)
 
 model3 <- lm(log_price_4_nights ~ prop_type_simplified + review_scores_rating + room_type + bathrooms + bedrooms + beds + accommodates, data = clean_data)
 
-get_regression_table(model3)
+get_regression_table(model3) %>%
+  kable() %>% 
+  kable_styling()
 
-get_regression_summaries(model3)
+get_regression_summaries(model3) %>%
+  kable() %>% 
+  kable_styling()
 
 autoplot(model3)
 
-vif(model3)
+vif(model3) %>%
+  kable() %>% 
+  kable_styling()
 
 ```
 
 ### Model 4
 
-* From our regression it does appear that superhosts require a slight price premium, the estimate takes a value of 0.073 significant at a 95% level (p-value = .000). It terms of the goodnessof fit of our model, the Adjusted R2 is now 0.565, exactly the same as before implying that the premium commanded by "superhosts" doesn't really add explenatory power to our model.
+* From our regression it does appear that superhosts require a slight price premium, the estimate takes a value of 0.073 significant at a 95% level (p-value = .000). It terms of the goodness of fit of our model, the Adjusted R2 is now 0.565, exactly the same as before implying that the premium commanded by "superhosts" doesn't really add explanatory power to our model.
 
 ```{r model4}
 
 model4 <- lm(log_price_4_nights ~ prop_type_simplified + review_scores_rating + room_type + bathrooms + beds + accommodates + host_is_superhost, data = clean_data)
 
-get_regression_table(model4)
+get_regression_table(model4) %>%
+  kable() %>% 
+  kable_styling()
 
-get_regression_summaries(model4)
+get_regression_summaries(model4) %>%
+  kable() %>% 
+  kable_styling()
 
 autoplot(model4)
 
-vif(model4)
+vif(model4) %>%
+  kable() %>% 
+  kable_styling()
 
 ```
 
@@ -452,70 +562,107 @@ vif(model4)
 
 model5 <- lm(log_price_4_nights ~ prop_type_simplified + review_scores_rating + room_type + bathrooms + beds + accommodates + host_is_superhost + is_location_exact, data = clean_data)
 
-get_regression_table(model5)
+get_regression_table(model5) %>%
+  kable() %>% 
+  kable_styling()
 
-get_regression_summaries(model5)
+get_regression_summaries(model5) %>%
+  kable() %>% 
+  kable_styling()
 
 autoplot(model5)
 
-vif(model5)
+vif(model5) %>%
+  kable() %>% 
+  kable_styling()
 
 ```
 
 
 ### Model 6
 
-To better understand our findings we grouped our 10 initial locations in to 3 bigger areas: North, South and Center setting the latter as our base-line. From this new model we can see that the Central region is clearly the most expensive and North is the cheapest on average. P-values for all are below 0.05 so we can accept the estimates as significant at 95%. By adding this division into bigger areas we can also notice an improvement to our adjusted R2 from 0.565 to 0.57.
+* To better understand our findings we grouped our 10 initial locations in to 3 bigger areas: North, South and Center setting the latter as our base-line. From this new model we can see that the Central region is clearly the most expensive and North is the cheapest on average. 
+
+* p-values for all are below 0.05 so we can accept the estimates as significant at 95%.
+
+* By adding this division into bigger areas we can also notice an improvement to our adjusted R2 from 0.565 to 0.57.
 
 ```{r model6}
 
 model6 <- lm(log_price_4_nights ~ prop_type_simplified + review_scores_rating + room_type + bathrooms + beds + accommodates + host_is_superhost + region_by_price, data = clean_data)
 
-get_regression_table(model6)
+get_regression_table(model6) %>%
+  kable() %>% 
+  kable_styling()
 
-get_regression_summaries(model6)
+get_regression_summaries(model6) %>%
+  kable() %>% 
+  kable_styling()
 
 autoplot(model6)
 
-vif(model6)
+vif(model6) %>%
+  kable() %>% 
+  kable_styling()
 
 ```
 
 ### Model 7
 
-We have now added the cancellation_policy dummy variable that refers to how many days before arrival you can still cancel the booking and get a refund. We can infer that this variable is not significant at a 95% level for the most part. Only "super strict policy" and "14 with grace" show acceptable p-values, but we considered this not enough to keep the variable. Morever it adds only 0.002 to the adjusted R2, a negligible effect.
+* We have now added the cancellation_policy dummy variable that refers to how many days before arrival you can still cancel the booking and get a refund. We can infer that this variable is not significant at a 95% level for the most part. Only "super strict policy" and "14 with grace" show acceptable p-values, but we considered this not enough to keep the variable. Morever it adds only 0.002 to the adjusted R2, a negligible effect.
 
 ```{r model7}
 
 model7 <- lm(log_price_4_nights ~ prop_type_simplified + review_scores_rating + room_type + bathrooms + beds + accommodates + host_is_superhost + region_by_price + cancellation_policy, data = clean_data)
 
-get_regression_table(model7)
+get_regression_table(model7) %>%
+  kable() %>% 
+  kable_styling()
 
-get_regression_summaries(model7)
+get_regression_summaries(model7) %>%
+  kable() %>% 
+  kable_styling()
 
 autoplot(model7)
 
-vif(model7)
+vif(model7) %>%
+  kable() %>% 
+  kable_styling()
 
 ```
 
 ## Final Model
 
+After a series of trial and error, we have our final model with **13 variables** and their coefficients as shown below. This model has an adjusted **R-squared of 55.5%**, suggesting a fairly strong correlation between the log price for four nights and the explanatory variables we have chosen.  
+
+In addition, we have examined the residuals plots and found the distribution to be **generally normal**, with exceptions of some fat tails, especially at higher end, which make sense as the price ceilings is more difficult to reach than price floors.
+
+Given the large number of variables in the model, we examined multicollinearity by summarising the GVIF statistics for all explanatory variables, and **no GVIF is greater than 10**, the common threshold to indicate collinearity exists. We would note that, however, the largest GVIF we have is 6.33 for "accomodates", which could be slightly correlated with "beds", with the second highest GVIF of 4.49. However, neither of them is too big to justify a removal from the model, especially after adjusting for degrees of freedom.
+
+
 ```{r model_final}
 
 model_final <- lm(log_price_4_nights ~ prop_type_simplified + review_scores_rating + room_type + bathrooms + beds + accommodates + host_is_superhost + region_by_price + host_total_listings_count + instant_bookable + guests_included + security_deposit + number_of_reviews, data = clean_data)
 
-get_regression_table(model_final)
+get_regression_table(model_final) %>%
+  kable() %>% 
+  kable_styling()
 
-get_regression_summaries(model_final)
+get_regression_summaries(model_final)  %>%
+  kable() %>% 
+  kable_styling()
 
 autoplot(model_final)
 
-vif(model_final)
+vif(model_final) %>%
+  kable() %>% 
+  kable_styling()
 
 ```
 
 # Conclusion
+
+Below we have summarised all of our 8 models, including **coefficient estimate** and **standard error** of each variable in each model. On the bottom we have also summarised four statistics, including residuals, adjusted r-squared, f statistics and the p-value. From model 1 to our final model, there is a significant decrease in residuals and a significant increase in the model predictability (r-squared).
 
 ```{r}
 
@@ -536,29 +683,54 @@ huxtable::huxreg(
 
 ```
 
-## Assumptions
+## Predictions with Final Model
 
-* number_of_reviews 10
-* 4 nights
-* Private room
-* 2 guests 
-* Average rating > 90%
-* Property type Apartment
-* Bathrooms 1
-* Beds 2
-* Accomodates 2
-* host is superhost
-* region center
-* host_total_listing_count avg of 20
-* insta bookable
-* guests_included 2
-* security_deposit 245
+Using our final model, we will make the price prediction for a two-people trip for four nights in Barcelona, at a place with 10 reviews and an average rating of 90. Since we have 13 variables in our final model, we need to make some additional assumptions, which are listed below:
 
-## Rationale
+* Property type: Apartment
+* Room type: Entire home/apt
+* Bathrooms: 1
+* Beds: 2
+* Accomodates: 2
+* Host is superhost: Yes
+* Region: center
+* Host total listings: 20 (we have selected the average)
+* Insta bookable: Yes (it's now or never)
+* Guests included: 2
+* Security deposit: 245 (we have selected the average)
+* Number of reviews: 10 (we have selected the average)
 
-## Significance and diagnostics 
+```{r predicting_CI}
 
-host_is_superhost, host_listings_count, host_identity_verified, neighbourhood_group_cleansed, city, zipcode,
-         property_type, room_type, accommodates, bathrooms, bedrooms, beds, square_feet, price, weekly_price, monthly_price, 
-         security_deposit, cleaning_fee, guests_included, extra_people, minimum_nights, maximum_nights, number_of_reviews,
-         review_scores_rating, instant_bookable, cancellation_policy, is_location_exact, host_total_listings_count
+value_variables <- data.frame(prop_type_simplified = "Apartment", 
+                             review_scores_rating = 90, 
+                             room_type = "Entire home/apt",
+                             bathrooms = 1,
+                             beds = 2,
+                             accommodates = 2,
+                             host_is_superhost = TRUE,
+                             region_by_price = "Center",
+                             host_total_listings_count = 20,
+                             instant_bookable = TRUE,
+                             guests_included = 2,
+                             security_deposit = 245,
+                             number_of_reviews = 10)
+
+predict(model_final, value_variables, interval = "confidence") 
+
+#transform into actual price from log price
+lower_CI <- exp(6.202182)
+upper_CI <- exp(6.238452)
+fit <- exp(6.165913)
+
+ht_CI <- hux(Lower = lower_CI,
+             Upper = upper_CI,
+             Fit = fit,
+             add_colnames = TRUE) %>%
+  set_caption("95% Confidence Interval")
+
+ht_CI
+
+```
+
+**Conclusion:** From our final model, we can predict that for 4 nights in Barcelona in an apartment all to ourselves, and given certain assumptions specified above, we have a **point predictor of USD476** for price for four nights per person, and we are 95% confident that the price for four nights per person is **between USD494 and USD512.** 
