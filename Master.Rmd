@@ -332,7 +332,6 @@ leaflet(data = filter(clean_data, minimum_nights <= 4)) %>%
                    fillOpacity = 0.8, 
                    label = ~price,
                    popup = ~listing_url,
-                   label = ~property_type,
                    stroke = FALSE)
 
 ```
@@ -534,11 +533,6 @@ huxtable::huxreg(
   statistics = c("Residuals" = "sigma", 'Adjusted R squared' = 'adj.r.squared', 'F statistic' = 'statistic',
   'P value' = 'p.value')) %>% 
   set_caption("Airbnb Barcelona models")
-
-```
-
-```{r}
-
 
 ```
 
